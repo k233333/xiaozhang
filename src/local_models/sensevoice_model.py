@@ -30,6 +30,19 @@ class SenseVoiceModel(LocalModel):
         super().__init__(cfg)
         self._tokenizer: Any = None
 
+    def load(self) -> bool:
+        """SenseVoice 覆盖 base.load()：funasr 路径不需要本地文件"""
+        if self._loaded:
+            return True
+        try:
+            self._load()
+            self._loaded = True
+            return True
+        except Exception as e:  # noqa: BLE001
+            from src.core.logger import get_logger as _gl
+            _gl(__name__).exception("SenseVoice 加载失败", err=str(e))
+            return False
+
     def _load(self) -> None:
         # 优先 funasr
         try:

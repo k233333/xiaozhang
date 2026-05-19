@@ -42,6 +42,9 @@ async def maybe_record(report: PlanReport, *, user_text: str) -> Path | None:
     path = await generate_skill(user_text=user_text, plan=plan, outcome="自动录制")
     if path is not None:
         _index_skill(plan.intent, str(path), user_text)
+        # 多步 plan 额外录制 workflow（便于确定性回放）
+        from src.learning.workflow_replay import record_from_plan  # noqa: PLC0415
+        record_from_plan(plan, skill_dir=path)
     return path
 
 
