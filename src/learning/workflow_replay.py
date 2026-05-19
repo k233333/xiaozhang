@@ -85,6 +85,9 @@ def record_from_plan(plan: Plan, *, skill_dir: Path | None = None) -> Path | Non
     # 保存位置
     if skill_dir is None:
         skill_dir = settings.resolve_path(settings.skills.generated_dir) / plan.intent
+    if skill_dir.is_file():
+        # skill_dir 指向的是 SKILL.md 文件本身，取其父目录
+        skill_dir = skill_dir.parent
     skill_dir.mkdir(parents=True, exist_ok=True)
     wf_path = skill_dir / "workflow.json"
 

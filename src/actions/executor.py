@@ -140,6 +140,12 @@ async def execute_plan(plan: Plan, *, session_id: int | None = None) -> PlanRepo
         report.aborted_reason = "ambiguous"
         return report
 
+    if not plan.steps:
+        log.warning("plan 没有可执行步骤", intent=plan.intent)
+        report.success = False
+        report.aborted_reason = "empty_steps"
+        return report
+
     for step in plan.steps:
         sr = await execute_step(step, session_id=session_id)
         report.steps.append(sr)
