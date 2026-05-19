@@ -114,10 +114,12 @@ mode_models:
 
 local_models:
   wake_word:
-    backend: cpu
-    model_path: models/wake_word/xiaozhang.onnx
+    backend: directml
+    fallback: cpu
+    model_path: models/wake_word
   silero_vad:
-    backend: cpu
+    backend: directml
+    fallback: cpu
     model_path: models/silero_vad.onnx
   sensevoice:
     backend: directml
