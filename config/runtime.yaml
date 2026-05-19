@@ -103,12 +103,23 @@ non_game_processes:
 auto_learned_games: []
 
 # 各模式下加载哪些本地模型
+# 各模式下加载哪些本地模型
 mode_models:
+  # 启动时立即加载（轻量，1.5s）
+  standard_immediate:
+    - wake_word
+    - silero_vad
+  # 启动 60 秒后延迟加载（重模型）
+  standard_deferred:
+    - sensevoice
+    - omniparser
+  # 完整标准模式（watchdog 切换时用）
   standard:
     - wake_word
     - silero_vad
     - sensevoice
     - omniparser
+  # 游戏模式
   gaming:
     - wake_word
 

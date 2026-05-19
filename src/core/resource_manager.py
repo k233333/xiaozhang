@@ -82,9 +82,20 @@ class ResourceManager:
     async def start_watchdog(self) -> None:
         if self._watchdog_task is not None:
             return
-        self.load_for_mode(self._mode)
+        # 启动时只加载轻量模型（wake_word + silero_vad），1.5s 即可响应唤醒词
+        immediate = settings.mode_models.get("standard_immediate", [])
+        if immediate:
+            log.info("启动：立即加载轻量模型", targets=immediate)
+            self._load_subset(immediate)
+        else:
+            self.load_for_mode(self._mode)
+
         self._watchdog_task = asyncio.create_task(
             self._watchdog_loop(), name="rm_watchdog"
+        )
+        # 60 秒后加载重模型（sensevoice + omniparser）
+        self._deferred_task = asyncio.create_task(
+            self._deferred_load(), name="rm_deferred"
         )
         log.info("ResourceManager watchdog 启动")
 
@@ -93,7 +104,37 @@ class ResourceManager:
             return
         self._watchdog_task.cancel()
         self._watchdog_task = None
+        if hasattr(self, "_deferred_task") and self._deferred_task is not None:
+            self._deferred_task.cancel()
+            self._deferred_task = None
         log.info("ResourceManager watchdog 停止")
+
+    def _load_subset(self, names: list[str]) -> None:
+        """只加载指定名称的模型（不卸载其他）"""
+        with self._lock:
+            for name in names:
+                m = self._models.get(name)
+                if m is not None and not m.is_loaded():
+                    m.load()
+
+    async def _deferred_load(self) -> None:
+        """启动 60 秒后加载重模型（sensevoice + omniparser）"""
+        delay = 60
+        log.info("延迟加载计划", delay_sec=delay, targets=settings.mode_models.get("standard_deferred", []))
+        try:
+            await asyncio.sleep(delay)
+            # 如果已经切到游戏模式就不加载了
+            if self._mode != Mode.STANDARD:
+                log.info("延迟加载取消（已切到游戏模式）")
+                return
+            deferred = settings.mode_models.get("standard_deferred", [])
+            if deferred:
+                log.info("延迟加载开始", targets=deferred)
+                self._load_subset(deferred)
+                log.info("延迟加载完成")
+        except asyncio.CancelledError:
+            log.info("延迟加载被取消")
+            raise
 
     def _instantiate_all(self) -> None:
         for name, mc in _MODEL_CLASSES.items():
