@@ -19,16 +19,20 @@ def _ratio(a: str, b: str) -> float:
 
 
 def match(user_text: str, skills: list[SkillSpec]) -> SkillSpec | None:
-    """返回最佳匹配（高于阈值）的 skill；没有则返回 None。"""
+    """返回最佳匹配的 skill；没有则返回 None。
+
+    三层匹配：
+      1. 字面包含（覆盖率 >= 0.7）
+      2. difflib 模糊相似度（>= threshold）
+      3. ChromaDB 向量召回（如果启用）
+    """
     if not user_text or not skills:
         return None
 
     text = user_text.strip()
     threshold = settings.skills.match_threshold
 
-    # 1. 字面包含优先（但要求覆盖率达标，避免短 trigger 把长意图截胡）
-    # 例如"打开抖音"包含在"打开抖音搜不惑兄弟"里，但后者的真实意图是搜索；
-    # 只有 trigger 占用户文本长度比例 >= 0.7 才算字面命中。
+    # 1. 字面包含（带覆盖率约束）
     coverage_threshold = 0.7
     best_literal: tuple[SkillSpec, str, float] | None = None
     for s in skills:
@@ -64,6 +68,30 @@ def match(user_text: str, skills: list[SkillSpec]) -> SkillSpec | None:
             ratio=round(best[2], 3),
         )
         return best[0]
+
+    # 3. 向量召回（ChromaDB）
+    if settings.memory.enable_vector:
+        try:
+            from src.memory.vector import query as vec_query  # noqa: PLC0415
+
+            results = vec_query(text, n=1)
+            if results:
+                top = results[0]
+                distance = top.get("distance", 999)
+                # ChromaDB 默认用 L2 距离，越小越相似；阈值经验值 < 1.0
+                if distance < 1.0:
+                    skill_name = top.get("skill_name", "")
+                    matched = next((s for s in skills if s.name == skill_name), None)
+                    if matched:
+                        log.info(
+                            "skill 向量命中",
+                            skill=matched.name,
+                            distance=round(distance, 3),
+                        )
+                        return matched
+        except Exception as e:  # noqa: BLE001
+            log.debug("向量召回失败（可忽略）", err=str(e))
+
     if best:
         log.debug(
             "skill 最佳模糊匹配未达阈值",

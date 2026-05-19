@@ -147,7 +147,7 @@ skills:
   generated_dir: ./skills/_generated
 
 memory:
-  enable_vector: false
+  enable_vector: true
   recent_session_lookback: 10
 
 actions:

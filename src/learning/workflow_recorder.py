@@ -72,3 +72,11 @@ def _index_skill(intent: str, path: str, user_text: str) -> None:
     )
     p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     log.info("skill 索引已更新", intent=intent)
+
+    # 同时写入 ChromaDB 向量库（如果启用）
+    if settings.memory.enable_vector:
+        try:
+            from src.memory.vector import add as vec_add  # noqa: PLC0415
+            vec_add(intent, user_text, metadata={"path": path})
+        except Exception as e:  # noqa: BLE001
+            log.debug("向量索引写入失败（可忽略）", err=str(e))

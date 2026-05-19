@@ -35,6 +35,9 @@ def _isolate_runtime_state(tmp_path, monkeypatch):
     monkeypatch.setattr(s.paths, "memory_db", str(test_data / "memory.db"))
     monkeypatch.setattr(s.paths, "user_profile", str(test_data / "USER.md"))
     monkeypatch.setattr(s.paths, "long_memory", str(test_data / "MEMORY.md"))
+    # 测试环境关闭向量召回（ChromaDB 首次初始化要下载 embedding 模型，太慢）
+    monkeypatch.setattr(s.memory, "enable_vector", False)
+
     # knowledge-runtime 也用临时
     kr = tmp_path / "knowledge-runtime.json"
     kr.write_text(
