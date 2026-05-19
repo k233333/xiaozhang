@@ -46,8 +46,8 @@ routing:
     timeout: 15
 
   task_planning:
-    primary: deepseek.v4-pro
-    fallback: deepseek.v4
+    primary: deepseek.v4         # 简单任务 1-3s
+    fallback: deepseek.v4-pro    # chat 规划失败时由 reasoner 兜底
     timeout: 30
 
   vision_analysis:
@@ -55,8 +55,8 @@ routing:
     timeout: 30
 
   skill_generation:
-    primary: deepseek.v4-pro
-    fallback: deepseek.v4
+    primary: deepseek.v4         # skill 生成是结构化抽取，chat 够用
+    fallback: deepseek.v4-pro
     timeout: 30
 
 policy:

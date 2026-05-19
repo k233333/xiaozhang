@@ -40,7 +40,7 @@ async def main() -> None:
 
         result = await run_turn(text)
         if result.skill_hit:
-            console.print(f"[green]🧠 命中 skill[/green]")
+            console.print("[green]\\[skill 命中][/green]")
         if result.note:
             console.print(f"[dim]→ {result.note}[/dim]")
         if result.report is not None:
@@ -51,7 +51,7 @@ async def main() -> None:
                     f"({sr.elapsed_sec:.2f}s) {sr.message}"
                 )
         console.print(
-            f"[bold]结果：[/bold]{'✅ 成功' if result.success else '❌ 失败'}\n"
+            f"[bold]结果：[/bold]{'[green]成功[/green]' if result.success else '[red]失败[/red]'}\n"
         )
 
 

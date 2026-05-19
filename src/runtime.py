@@ -83,7 +83,7 @@ async def run_turn(user_text: str, sm: StateMachine | None = None) -> TurnResult
 
         # 处理 ambiguous
         if plan.intent == "ambiguous":
-            print(f"\n🤔 小张：{plan.note or '我没听清，能再说一次吗？'}")
+            print(f"\n[小张] {plan.note or '我没听清，能再说一次吗？'}")
             store.end_session(session_id, intent=plan.intent, success=False, note=plan.note)
             if sm is not None:
                 await sm.reset()

@@ -132,7 +132,7 @@ async def _h_wait(step: Step) -> StepResult:
 async def _h_say(step: Step) -> StepResult:
     """小张反馈一句话。当前是 stdout 输出，未接入 TTS。"""
     text = step.text or step.description or ""
-    print(f"\n🗣  小张：{text}")
+    print(f"\n[小张] {text}")
     log.info("小张说", text=text)
     return StepResult(True)
 

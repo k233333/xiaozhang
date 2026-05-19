@@ -11,7 +11,17 @@
 from __future__ import annotations
 
 import asyncio
+import io
+import sys
 from typing import Optional
+
+# Windows 控制台默认 GBK，强制让 stdout/stderr 走 UTF-8，避免任何中文/emoji 输出炸
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 import click
 from rich.console import Console
@@ -86,7 +96,7 @@ def evolve_cmd() -> None:
 @cli.command("status")
 def status_cmd() -> None:
     """查看资源状态：当前模式 / 各本地模型加载情况 / CPU 内存"""
-    from src.core.cpu_guard import cpu_load_pct, memory_pressure  # noqa: PLC0415
+    from src.core.cpu_guard import cpu_load_pct, get_guard_state, memory_pressure  # noqa: PLC0415
     from src.core.game_detector import detector  # noqa: PLC0415
     from src.core.resource_manager import resource_manager  # noqa: PLC0415
     from src.local_models.base import available_providers  # noqa: PLC0415
@@ -100,13 +110,65 @@ def status_cmd() -> None:
     console.print(f"[dim]ONNX providers：{available_providers()}[/dim]")
     cpu = cpu_load_pct(0.2)
     mem = memory_pressure()
-    console.print(f"[dim]CPU {cpu:.1f}%   内存 {mem['used_gb']}/{mem['total_gb']}GB[/dim]\n")
+    console.print(f"[dim]CPU {cpu:.1f}%   内存 {mem['used_gb']}/{mem['total_gb']}GB[/dim]")
+    gs = get_guard_state()
+    if gs["samples_count"]:
+        console.print(
+            f"[dim]cpu_guard：连续高={gs['consecutive_high']} 连续低={gs['consecutive_low']} "
+            f"已触发游戏模式={gs['triggered_gaming']} 最近5次={gs['recent_cpu']}%[/dim]"
+        )
+    console.print()
 
     table = Table("model", "loaded", "backend", "providers")
     for name, m in resource_manager._models.items():
-        loaded = "[green]✓[/green]" if m.is_loaded() else "[dim]✗[/dim]"
+        loaded = "[green]on[/green]" if m.is_loaded() else "[dim]off[/dim]"
         table.add_row(name, loaded, m.cfg.backend, ", ".join(m.providers))
     console.print(table)
+
+
+@cli.command("stats")
+def stats_cmd() -> None:
+    """查看 skill 调用统计（自学习成果）"""
+    from src.learning import skill_stats  # noqa: PLC0415
+
+    stats = skill_stats.all_stats()
+    if not stats:
+        console.print("[dim]还没有 skill 调用记录[/dim]")
+        return
+
+    table = Table("skill", "total", "success", "fail", "rate", "last_failure")
+    for name, s in sorted(stats.items(), key=lambda kv: -kv[1].get("total", 0)):
+        total = s.get("total", 0)
+        succ = s.get("success", 0)
+        fail = s.get("fail", 0)
+        rate = succ / total if total else 0
+        rate_color = "green" if rate >= 0.8 else ("yellow" if rate >= 0.5 else "red")
+        table.add_row(
+            name,
+            str(total),
+            str(succ),
+            str(fail),
+            f"[{rate_color}]{rate:.0%}[/{rate_color}]",
+            (s.get("last_failure_reason") or "")[:40],
+        )
+    console.print(table)
+
+
+@cli.command("skills")
+def skills_cmd() -> None:
+    """列出所有已加载的 skill"""
+    from src.skills import loader  # noqa: PLC0415
+
+    skills = loader.load_all()
+    table = Table("name", "triggers", "steps", "source")
+    for s in skills:
+        source = "_generated" if "_generated" in str(s.path) else "_builtin"
+        triggers = " / ".join(s.triggers[:3])
+        if len(s.triggers) > 3:
+            triggers += f" (+{len(s.triggers) - 3})"
+        table.add_row(s.name, triggers, str(len(s.steps)), source)
+    console.print(table)
+    console.print(f"\n[dim]共 {len(skills)} 个 skill[/dim]")
 
 
 @cli.command("mode")
@@ -136,7 +198,7 @@ async def _speak_once(text: str) -> None:
     result = await run_turn(text)
     console.print(f"\n[bold]意图：[/bold]{result.plan.intent if result.plan else '无'}")
     console.print(f"[bold]Skill 命中：[/bold]{'是' if result.skill_hit else '否'}")
-    console.print(f"[bold]结果：[/bold]{'✅ 成功' if result.success else '❌ 失败'}")
+    console.print(f"[bold]结果：[/bold]{'[green]成功[/green]' if result.success else '[red]失败[/red]'}")
     if result.report is not None:
         for sr in result.report.steps:
             tag = "[green]OK[/green]" if sr.success else "[red]FAIL[/red]"
@@ -166,6 +228,10 @@ async def _run_daemon() -> None:
         log.warning("托盘启动失败，继续无托盘", err=str(e))
 
     await resource_manager.start_watchdog()
+
+    # D11：CPU 高负载守护
+    from src.core.cpu_guard import start_cpu_guard, stop_cpu_guard  # noqa: PLC0415
+    await start_cpu_guard()
 
     try:
         await stt.warm_up()
@@ -204,7 +270,7 @@ async def _run_daemon() -> None:
             console.print(f"[cyan]你说：[/cyan]{tr.text}")
             result = await run_turn(tr.text, sm=sm)
             console.print(
-                f"[bold]结果：[/bold]{'✅ 成功' if result.success else '❌ 失败'}"
+                f"[bold]结果：[/bold]{'[green]成功[/green]' if result.success else '[red]失败[/red]'}"
             )
 
     except KeyboardInterrupt:
@@ -213,6 +279,7 @@ async def _run_daemon() -> None:
         if wake_task:
             wake_task.cancel()
         await resource_manager.stop_watchdog()
+        await stop_cpu_guard()
         if tray is not None:
             tray.stop()
 
