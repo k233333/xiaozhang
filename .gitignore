@@ -64,3 +64,7 @@ config/*.local.yaml
 
 # 用户自动学习产生的 skill（按需进 git）
 # skills/_generated/
+
+
+# 截图归档（每次执行都生成大量 PNG）
+logs/screenshots/
