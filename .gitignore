@@ -68,3 +68,7 @@ config/*.local.yaml
 
 # 截图归档（每次执行都生成大量 PNG）
 logs/screenshots/
+
+
+# pytest cache
+.pytest_cache/

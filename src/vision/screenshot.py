@@ -26,7 +26,7 @@ def _shots_dir() -> Path:
 
 def grab_full(save: bool = True, tag: str = "") -> tuple[Image.Image, Path | None]:
     """整屏截图。返回 (PIL.Image, 保存路径)"""
-    with mss.mss() as sct:
+    with mss.MSS() as sct:
         # mss 第 0 个 monitor 是所有屏拼接，第 1 个开始是单屏
         mon = sct.monitors[1] if len(sct.monitors) > 1 else sct.monitors[0]
         raw = sct.grab(mon)
@@ -43,7 +43,7 @@ def grab_full(save: bool = True, tag: str = "") -> tuple[Image.Image, Path | Non
 
 
 def grab_region(left: int, top: int, width: int, height: int, save: bool = True, tag: str = "") -> tuple[Image.Image, Path | None]:
-    with mss.mss() as sct:
+    with mss.MSS() as sct:
         raw = sct.grab({"left": left, "top": top, "width": width, "height": height})
         img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
     saved = None
