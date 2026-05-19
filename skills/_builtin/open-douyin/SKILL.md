@@ -1,8 +1,8 @@
 ---
 name: open-douyin
-description: 打开抖音网页版（默认浏览器）
+description: 打开抖音客户端
 allowed-tools:
-  - open_url
+  - launch_app
 ---
 
 # open-douyin
@@ -12,9 +12,10 @@ allowed-tools:
 - 抖音
 - 看抖音
 - 启动抖音
+- 抖音客户端
 
 ## description
-在默认浏览器中打开抖音网页版。
+通过桌面快捷方式打开抖音 Windows 客户端。
 
 ## confirm_required
 false
@@ -24,12 +25,14 @@ false
 [
   {
     "tier": "D",
-    "action": "open_url",
-    "url": "https://www.douyin.com",
-    "description": "打开抖音首页"
+    "action": "launch_app",
+    "cmd": ["cmd", "/c", "start", "", "C:\\Users\\k9211\\Desktop\\抖音.lnk"],
+    "description": "打开抖音客户端"
   }
 ]
 ```
 
 ## learned
-- 抖音网页版反爬较强，长期建议改走客户端 + 快捷键路线
+- 用户桌面有抖音快捷方式：C:\Users\k9211\Desktop\抖音.lnk
+- 用 cmd /c start "" "path.lnk" 可以打开 .lnk 快捷方式
+- 客户端比网页版更稳定，不会被反爬

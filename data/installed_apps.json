@@ -1,0 +1,42 @@
+{
+  "path_executables": {
+    "python.exe": "C:\\Users\\k9211\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+    "pwsh.exe": "C:\\Users\\k9211\\scoop\\shims\\pwsh.exe",
+    "notepad.exe": "C:\\WINDOWS\\System32\\notepad.exe",
+    "calc.exe": "C:\\WINDOWS\\System32\\calc.exe",
+    "cmd.exe": "C:\\WINDOWS\\System32\\cmd.exe",
+    "node.exe": "C:\\Program Files\\nodejs\\node.exe",
+    "npm.cmd": "C:\\Program Files\\nodejs\\npm.cmd",
+    "git.exe": "C:\\Users\\k9211\\scoop\\shims\\git.exe"
+  },
+  "desktop_shortcuts": {
+    "Adobe Photoshop 2021": "C:\\Users\\k9211\\Desktop\\Adobe Photoshop 2021.lnk",
+    "CC Switch": "C:\\Users\\k9211\\Desktop\\CC Switch.lnk",
+    "ChemOffice+": "C:\\Users\\k9211\\Desktop\\ChemOffice+.lnk",
+    "Cursor": "C:\\Users\\k9211\\Desktop\\Cursor.lnk",
+    "Dukharo Driver": "C:\\Users\\k9211\\Desktop\\Dukharo Driver.lnk",
+    "GitLab": "C:\\Users\\k9211\\Desktop\\GitLab.lnk",
+    "MSI Afterburner": "C:\\Users\\k9211\\Desktop\\MSI Afterburner.lnk",
+    "MuMu多开器12": "C:\\Users\\k9211\\Desktop\\MuMu多开器12.lnk",
+    "OpenIV": "C:\\Users\\k9211\\Desktop\\OpenIV.lnk",
+    "PixPin": "C:\\Users\\k9211\\Desktop\\PixPin.lnk",
+    "Rockstar Games Launcher": "C:\\Users\\k9211\\Desktop\\Rockstar Games Launcher.lnk",
+    "Telegram": "C:\\Users\\k9211\\Desktop\\Telegram.lnk",
+    "UU远程": "C:\\Users\\k9211\\Desktop\\UU远程.lnk",
+    "Visual Studio Code": "C:\\Users\\k9211\\Desktop\\Visual Studio Code.lnk",
+    "WindTerm.exe - 快捷方式 (2)": "C:\\Users\\k9211\\Desktop\\WindTerm.exe - 快捷方式 (2).lnk",
+    "WindTerm.exe - 快捷方式": "C:\\Users\\k9211\\Desktop\\WindTerm.exe - 快捷方式.lnk",
+    "下载 - 快捷方式": "C:\\Users\\k9211\\Desktop\\下载 - 快捷方式.lnk",
+    "图吧工具箱": "C:\\Users\\k9211\\Desktop\\图吧工具箱.lnk",
+    "抖音": "C:\\Users\\k9211\\Desktop\\抖音.lnk",
+    "腾讯手游助手-畅玩手机游戏": "C:\\Users\\k9211\\Desktop\\腾讯手游助手-畅玩手机游戏.lnk",
+    "英雄联盟WeGame版": "C:\\Users\\k9211\\Desktop\\英雄联盟WeGame版.lnk",
+    "迅雷": "C:\\Users\\k9211\\Desktop\\迅雷.lnk",
+    "迅雷游戏": "C:\\Users\\k9211\\Desktop\\迅雷游戏.lnk",
+    "酷狗音乐": "C:\\Users\\k9211\\Desktop\\酷狗音乐.lnk",
+    "金舟电脑录音软件": "C:\\Users\\k9211\\Desktop\\金舟电脑录音软件.lnk",
+    "雷神加速器": "C:\\Users\\k9211\\Desktop\\雷神加速器.lnk"
+  },
+  "start_menu_count": 162,
+  "registry_apps_count": 181
+}

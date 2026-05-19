@@ -1,0 +1,137 @@
+# 本机已安装软件路径映射（由 _scan_apps.py 扫描生成，可手动补充）
+# 小张在 launch_app 时会查这个表找到正确的启动路径
+
+# 格式：
+#   名称:
+#     path: 可执行文件路径 或 .lnk 快捷方式路径
+#     uri: URI scheme（如果有）
+#     aliases: [别名列表]
+
+apps:
+  # === 浏览器 ===
+  chrome:
+    path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+    aliases: [Chrome, 谷歌浏览器, 谷歌]
+
+  edge:
+    path: "msedge.exe"
+    aliases: [Edge, 微软浏览器]
+
+  # === 开发工具 ===
+  vscode:
+    path: "C:\\Users\\k9211\\Desktop\\Visual Studio Code.lnk"
+    aliases: [VS Code, VSCode, vscode]
+
+  cursor:
+    path: "D:\\Software\\cursor\\Cursor.exe"
+    aliases: [Cursor]
+
+  kiro:
+    path: "Kiro.exe"
+    aliases: [Kiro, kiro]
+
+  git:
+    path: "C:\\Users\\k9211\\scoop\\shims\\git.exe"
+
+  pwsh:
+    path: "C:\\Users\\k9211\\scoop\\shims\\pwsh.exe"
+    aliases: [PowerShell, pwsh]
+
+  # === 社交通讯 ===
+  telegram:
+    path: "C:\\Users\\k9211\\Desktop\\Telegram.lnk"
+    uri: "tg://"
+    aliases: [Telegram, 电报, TG]
+
+  wechat:
+    uri: "weixin://"
+    aliases: [微信, WeChat]
+
+  qq:
+    uri: "tencent://message/"
+    aliases: [QQ]
+
+  # === 游戏 ===
+  lol:
+    path: "C:\\Users\\k9211\\Desktop\\英雄联盟WeGame版.lnk"
+    uri: "wegame://rungame/1/0/0"
+    aliases: [英雄联盟, LOL, lol]
+
+  steam:
+    uri: "steam://open/main"
+    aliases: [Steam]
+
+  epic:
+    path: "D:\\A2.Game\\Epic Games\\Launcher\\Portal\\Binaries\\Win64\\EpicGamesLauncher.exe"
+    aliases: [Epic, Epic Games]
+
+  # === 媒体 ===
+  douyin:
+    path: "C:\\Users\\k9211\\Desktop\\抖音.lnk"
+    aliases: [抖音, 抖音客户端, 抖音app]
+
+  kugou:
+    path: "C:\\Users\\k9211\\Desktop\\酷狗音乐.lnk"
+    aliases: [酷狗, 酷狗音乐]
+
+  # === 工具 ===
+  photoshop:
+    path: "C:\\Users\\k9211\\Desktop\\Adobe Photoshop 2021.lnk"
+    aliases: [Photoshop, PS, ps]
+
+  everything:
+    path: "d:\\Everything\\Everything.exe"
+    aliases: [Everything, 搜索文件]
+
+  7zip:
+    path: "d:\\Program Files\\7-Zip\\7zFM.exe"
+    aliases: [7-Zip, 7zip, 压缩]
+
+  clash:
+    path: "D:\\Program Files\\Clash Verge\\Clash Verge.exe"
+    aliases: [Clash, 代理, VPN, 翻墙]
+
+  afterburner:
+    path: "C:\\Users\\k9211\\Desktop\\MSI Afterburner.lnk"
+    aliases: [Afterburner, 小飞机, 显卡监控]
+
+  pixpin:
+    path: "C:\\Users\\k9211\\Desktop\\PixPin.lnk"
+    aliases: [PixPin, 截图工具]
+
+  thunder:
+    path: "C:\\Users\\k9211\\Desktop\\迅雷.lnk"
+    aliases: [迅雷, 下载]
+
+  leigod:
+    path: "C:\\Users\\k9211\\Desktop\\雷神加速器.lnk"
+    aliases: [雷神, 加速器, 雷神加速器]
+
+  chemoffice:
+    path: "C:\\Users\\k9211\\Desktop\\ChemOffice+.lnk"
+    aliases: [ChemOffice, 化学]
+
+  autohotkey:
+    path: "C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey.exe"
+    aliases: [AutoHotkey, AHK]
+
+  # === 系统 ===
+  explorer:
+    path: "explorer.exe"
+    aliases: [资源管理器, 文件管理器, 我的电脑, 此电脑]
+
+  taskmgr:
+    path: "taskmgr.exe"
+    aliases: [任务管理器]
+
+  notepad:
+    path: "notepad.exe"
+    aliases: [记事本]
+
+  calc:
+    path: "calc.exe"
+    aliases: [计算器]
+
+  settings:
+    uri: "ms-settings:"
+    aliases: [设置, Windows设置, 系统设置]
