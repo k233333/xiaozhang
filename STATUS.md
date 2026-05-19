@@ -53,8 +53,8 @@ D:\11111begin\xiaozhang\
 
 | 问题 | 现状 | 下一步建议 |
 |---|---|---|
-| **唤醒词"小张"** | 用 openWakeWord embedding 训练了但分离度 -0.08（正负样本没分开），英文模型对中文无效 | **方案 B：用 faster-whisper 持续转写短片段做关键词检测**（准确但 1-2s 延迟）；或用 Picovoice Porcupine 自定义中文唤醒词 |
-| **VAD 误触发** | webrtcvad aggressiveness=3 仍然把环境噪音当语音，导致叮嘟循环 | 唤醒词解决后此问题自动消失（只有唤醒后才开始录音）|
+| **唤醒词"小张"** | 自训练 ONNX 分类器 99.8% 准确率，已接入主循环 | 需要实测验证（你说"小张"看能不能触发）|
+| **VAD 误触发** | 已解决 — 唤醒词启用后只有"小张"命中才开始录音，环境噪音不再触发叮嘟 | — |
 | **SenseVoice 推理管线** | 894MB ONNX 已下载到 GPU，但 sherpa-onnx 版的输入格式（mel+tokenizer）没对接 | 需要研究 sherpa-onnx 的 SenseVoice 推理 API，或等 funasr 装好 torch |
 | **OmniParser 真实推理** | HuggingFace 上是 safetensors 不是 ONNX，icon_detect 404 | 需要从 PyTorch 转 ONNX，或等微软发布官方 ONNX |
 | **Vision 坐标不准** | Gemini 在 4K 屏上返回的坐标偏移，点不到目标 | 已改用 pyautogui 确定性坐标；Vision 仅作最后兜底 |

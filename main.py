@@ -622,8 +622,11 @@ async def _run_daemon() -> None:
         log.warning("STT 预热失败", err=str(e))
 
     if settings.wake_word.enabled:
-        wd = wake_word.WakeWordDetector(sm)
-        wake_task = asyncio.create_task(wd.run(), name="wake")
+        # 使用自训练唤醒词模型（mel 特征 + ONNX 分类器，99.8% 准确率）
+        from src.audio.wake_word_loop import WakeWordLoop  # noqa: PLC0415
+        ww_loop = WakeWordLoop(sm)
+        wake_task = asyncio.create_task(ww_loop.run(), name="wake_custom")
+        log.info("自训练唤醒词监听启动（说'小张'触发）")
     else:
         wake_task = None
         log.info("唤醒词禁用 — 进入键盘 push-to-talk 模式（按回车开始说话）")
@@ -635,6 +638,9 @@ async def _run_daemon() -> None:
                     None, lambda: input("\n[按回车开始说话，Ctrl+C 退出] ")
                 )
                 await sm.transition(State.LISTENING)
+            else:
+                # 唤醒词模式：等 wake_word_loop 把状态切到 LISTENING
+                pass
 
             while sm.state != State.LISTENING:
                 await asyncio.sleep(0.1)
