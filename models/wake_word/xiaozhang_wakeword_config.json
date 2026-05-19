@@ -1,0 +1,14 @@
+{
+  "wake_word": "xiaozhang",
+  "model_type": "gradient_boosting_mel",
+  "threshold": 0.7,
+  "n_mels": 40,
+  "n_fft": 512,
+  "hop": 160,
+  "sample_rate": 16000,
+  "feature_dim": 80,
+  "positive_samples": 30,
+  "negative_samples": 463,
+  "cv_accuracy": 0.997979797979798,
+  "created_at": 1779198194.891142
+}
