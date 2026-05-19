@@ -75,10 +75,26 @@ Windows 桌面没有"tap"概念，用 `click` + `target`。
 
 ### 抖音/B站等视频平台的标准操作路径
 
-1. 打开网页版（优先）：`open_url` + 搜索 URL
-2. 如果必须用客户端：`launch_app` + 客户端路径/URI scheme
-3. 搜索框输入：先 `click` 搜索框 → 再 `type` 关键词 → 再 `keys` "enter"
-4. 点击结果：`click` + `target`（name / automation_id）
+**抖音客户端（用户已安装，桌面有快捷方式）：**
+1. `launch_app` cmd=["cmd","/c","start","","C:\\Users\\k9211\\Desktop\\抖音.lnk"] → 打开客户端
+2. `wait` 4s → 等加载
+3. `keys` "escape" → 关闭可能的弹窗
+4. `wait` 1s
+5. `screenshot_and_decide` → 让 Vision 找到搜索框并点击
+6. `type` text="关键词" → 输入搜索词
+7. `keys` "enter" → 执行搜索
+8. `wait` 3s → 等搜索结果
+9. `screenshot_and_decide` → 让 Vision 找到第一个视频并点击
+
+**B 站（网页版）：**
+1. `open_url` url="https://search.bilibili.com/all?keyword=关键词"
+2. `wait` 3s
+3. `screenshot_and_decide` → 点击第一个视频
+
+**通用网页搜索：**
+1. `open_url` + 搜索 URL（如 google.com/search?q=xxx）
+2. `wait` 3s
+3. `screenshot_and_decide` → 点击目标结果
 
 ## 高风险标记（`requires_confirmation: true`）
 
