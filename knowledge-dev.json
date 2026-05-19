@@ -1,0 +1,214 @@
+{
+  "version": "1.0",
+  "project": "XiaoZhang Voice Assistant",
+  "user": "k9211",
+  "created_at": "2026-05-18",
+  "last_session": "2026-05-18",
+
+  "current_phase": "D14-pre",
+  "phase_definitions": {
+    "D0": "项目骨架 + 全局记忆路由",
+    "D1-2": "麦克风 → faster-whisper → 终端打印",
+    "D3": "接 Claude Code SDK，输出 action JSON",
+    "D4-5": "D 级 executor：URI scheme / 快捷键 / subprocess",
+    "D6-7": "Skills + Memory 模块（仿 CClear/Hermes）",
+    "D8-9": "C 级 executor：pywinauto + Playwright",
+    "D10-11": "openWakeWord 两段式唤醒 + 状态机",
+    "D12-13": "A 级 executor：Claude Vision 兜底",
+    "D14": "系统托盘 + 守护进程 + 端到端 demo"
+  },
+
+  "phase_log": [
+    {
+      "phase": "D0",
+      "sub_task": "建立项目数据源骨架（PLAN/README/prompt-dev/playbook-dev/knowledge-dev）",
+      "completed_at": "2026-05-18",
+      "output_files": [
+        "PLAN.md",
+        "README.md",
+        "prompt-dev.md",
+        "playbook-dev.md",
+        "knowledge-dev.json"
+      ]
+    },
+    {
+      "phase": "D1-D14",
+      "sub_task": "一次性写完所有代码骨架（用户睡觉期间自动完成）",
+      "completed_at": "2026-05-18",
+      "output_files": [
+        "pyproject.toml",
+        "config.yaml",
+        "main.py",
+        "dev_console.py",
+        "src/core/{config,logger,state_machine,safety}.py",
+        "src/audio/{recorder,stt,wake_word}.py",
+        "src/brain/{claude_client,action_schema}.py",
+        "src/brain/prompts/{SOUL,planner,skill_creator,intent_router}.md",
+        "src/memory/{store,recall,user_profile,vector}.py",
+        "src/skills/{loader,matcher,generator}.py",
+        "src/actions/{executor,tier_d_protocol,tier_c_uia,tier_a_vision}.py",
+        "src/vision/{screenshot,vision_query}.py",
+        "src/learning/{skill_stats,workflow_recorder,evolution}.py",
+        "src/tray/tray_icon.py",
+        "src/runtime.py",
+        "skills/_builtin/{open-douyin,open-telegram}/SKILL.md"
+      ]
+    }
+  ],
+
+  "decisions": [
+    {
+      "question": "用 Hermes Agent 还是 CClear 模式做 Skills/Memory 系统？",
+      "answer": "用 CClear 模式（prompt + playbook + knowledge.json 三件套）",
+      "rationale": "CClear 已在用户场景验证（438GB 释放、24 条新规则）；Hermes 抽象层级太高，要再翻译；CClear 模式是用户已掌握的工程范式",
+      "date": "2026-05-18"
+    },
+    {
+      "question": "Claude Code 后端实际是 DeepSeek，要换回真 Claude 吗？",
+      "answer": "不换，保持 DeepSeek（用户主动配置的成本优化）",
+      "rationale": "用户已习惯，成本可控；vision 兜底层 D12-13 阶段再决定要不要单独走真 Claude API",
+      "date": "2026-05-18"
+    },
+    {
+      "question": "dev 和 runtime 的 knowledge.json 要不要拆开？",
+      "answer": "拆开",
+      "rationale": "开发期记录的是阶段进度/工程决策，运行期记录的是用户偏好/skill 索引，两者演进节奏完全不同，不能混在一起污染 token",
+      "date": "2026-05-18"
+    },
+    {
+      "question": "全局路由要在哪些 agent 里同步注册？",
+      "answer": "只注册 Claude Code（~/.claude/CLAUDE.md）和 Kiro（~/.kiro/steering/xiaozhang.md），不动 Codex 和 Gemini",
+      "rationale": "用户只用前两个 agent；后两个保留干净状态",
+      "date": "2026-05-18"
+    }
+  ],
+
+  "open_questions": [
+    {
+      "id": "Q1",
+      "question": "唤醒词训练数据要用户自己录还是先用通用模型预跑？",
+      "context": "D10-11 阶段才会真正用到，但要提前规划录音流程",
+      "options": [
+        "A: 自录 30+30+200 段（耗时但准确）",
+        "B: 先用 openWakeWord 自带模型 + 4 秒二次确认窗口兜底",
+        "C: 先 B 跑两周，误触率超阈值再补 A"
+      ]
+    },
+    {
+      "id": "Q2",
+      "question": "运行期 LLM 调用要不要本地缓存最近 N 条规划结果？",
+      "context": "D3 阶段要决定 Claude Code SDK 调用层是否加缓存层",
+      "options": [
+        "A: 不缓存，纯靠 skill 命中省 token",
+        "B: 加 N=20 LRU 缓存（可能 1 小时内重复指令直接复用）",
+        "C: 用 SQLite 持久化缓存，跨会话复用"
+      ]
+    },
+    {
+      "id": "Q3",
+      "question": "高风险操作的二次确认走语音还是键盘？",
+      "context": "D4-5 阶段写 safety.py 时要决定",
+      "options": [
+        "A: 只走键盘（不会被环境噪音误触发）",
+        "B: 只走语音（保持纯语音体验）",
+        "C: 默认键盘，可配置走语音"
+      ]
+    }
+  ],
+
+  "learned": [
+    {
+      "rule": "全局记忆和项目数据源必须分层：全局只放路由指令（小段），项目才放厚知识",
+      "context": "三个 agent（Claude Code、Kiro IDE、Kiro CLI）共享同一份项目数据源，全局只是路由表",
+      "evidence": "CClear 项目验证过；如果把 8KB 的 knowledge.json 直接塞进 ~/.claude/CLAUDE.md，每次对话都加载浪费 token",
+      "date": "2026-05-18"
+    },
+    {
+      "rule": "Kiro 的 steering 文件支持三种 inclusion：always / fileMatch / manual",
+      "context": "选 manual 表示用户必须用 #名字 主动触发；选 always 每次对话都加载；fileMatch 按文件名 glob 触发",
+      "evidence": "~/.kiro/steering/cclear.md 配置示例",
+      "date": "2026-05-18"
+    },
+    {
+      "rule": "Claude Code 的全局指令文件是 ~/.claude/CLAUDE.md，always 加载",
+      "context": "和 Kiro 的 manual 模式不同，Claude Code 看到关键词会自动响应",
+      "evidence": "CClear 的 CLAUDE.md 段配置",
+      "date": "2026-05-18"
+    },
+    {
+      "rule": "skill matcher 字面包含必须加'覆盖率约束'，否则短 trigger 会截胡长意图",
+      "context": "例如 trigger='打开抖音' 会错误命中 user_text='打开抖音搜不惑兄弟'，但后者真实意图是搜索",
+      "evidence": "Session 2 的 matcher 测试观察到误命中，加 coverage>=0.7 解决",
+      "date": "2026-05-18"
+    },
+    {
+      "rule": "anthropic SDK 通过 base_url 参数即可切到 DeepSeek 后端，不需要换 SDK",
+      "context": "DeepSeek 提供了 Anthropic 协议兼容端点 (https://api.deepseek.com/anthropic)",
+      "evidence": "用户已在 ~/.claude/settings.json 这样配过；小张沿用同一 env var",
+      "date": "2026-05-18"
+    },
+    {
+      "rule": "uv 在 Windows 上可以走 scoop 装，比 PowerShell irm 脚本更稳",
+      "context": "irm | iex 在 cmd shell + PS7 混合环境下偶发解析问题",
+      "evidence": "Session 2 实测 scoop install uv 一次成功",
+      "date": "2026-05-18"
+    },
+    {
+      "rule": "FTS5 同步触发器要写 ai/ad/au 三个，否则 UPDATE 会让索引漂移",
+      "context": "store.py 的 events_fts 用 contentless 模式，必须靠触发器维护索引",
+      "evidence": "Hermes Agent memory/store.py 同样写法",
+      "date": "2026-05-18"
+    },
+    {
+      "rule": "中文 type 必须走剪贴板（pyautogui.write 不支持非 ASCII）",
+      "context": "tier_d_protocol._h_type 自动检测中文字符切到 pyperclip + ctrl+v",
+      "evidence": "pyautogui 文档 + 实际尝试 write('你好') 会丢字符",
+      "date": "2026-05-18"
+    },
+    {
+      "rule": "Workflow Recorder 是'越用越聪明'的核心：成功的非 skill_hit 自动转 skill",
+      "context": "受 Friday/Ascension BrowserRecorder 启发；落地为 src/learning/workflow_recorder.py",
+      "evidence": "用户首次说'打开抖音搜不惑兄弟' → LLM 规划 → 成功 → 自动写 skills/_generated/，下次直接命中",
+      "date": "2026-05-18"
+    },
+    {
+      "rule": "三层降级 D>C>A 必须每步独立判断 fallback，不能用全局兜底",
+      "context": "executor.execute_step 的 chain 实现：每个 step 自己降级，不影响下一 step 的初始 tier",
+      "evidence": "如果用全局兜底，后面不需要 vision 的步骤会浪费截图调用",
+      "date": "2026-05-18"
+    }
+  ],
+
+  "tech_stack": {
+    "language": "Python 3.11+",
+    "package_manager": "uv",
+    "wake_word": "openWakeWord",
+    "stt": "faster-whisper (small)",
+    "vad": "webrtcvad or silero-vad",
+    "llm_backend": "Claude Code SDK (DeepSeek backend)",
+    "ui_automation": "pywinauto + uiautomation",
+    "web_automation": "Playwright",
+    "vision": "Claude Vision API",
+    "memory_db": "SQLite + FTS5 + ChromaDB",
+    "tray": "pystray"
+  },
+
+  "constraints": {
+    "no_local_llm": true,
+    "idle_memory_mb": 100,
+    "idle_cpu_pct": 1,
+    "no_gui": true,
+    "high_risk_ops_require_confirm": true,
+    "high_risk_ops": [
+      "send_message",
+      "send_email",
+      "payment",
+      "input_verification_code",
+      "delete_file",
+      "uninstall_program",
+      "shutdown",
+      "restart",
+      "submit_form_with_pii"
+    ]
+  }
+}

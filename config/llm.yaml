@@ -1,0 +1,67 @@
+# LLM Provider + 路由规则
+# 加新 provider 只在这里加，代码 0 改动
+
+providers:
+  deepseek:
+    api_key_env: DEEPSEEK_API_KEY
+    base_url: https://api.deepseek.com/v1
+    sdk: openai            # 走 OpenAI 兼容 SDK
+    models:
+      v4: deepseek-chat
+      v4-pro: deepseek-reasoner
+
+  # 未来加这些 provider 只解开注释 + 填 env：
+  # claude:
+  #   api_key_env: ANTHROPIC_API_KEY
+  #   base_url: https://api.anthropic.com
+  #   sdk: anthropic
+  #   models:
+  #     sonnet: claude-sonnet-4-5
+  #     opus: claude-opus-4
+  #
+  # qwen:
+  #   api_key_env: DASHSCOPE_API_KEY
+  #   base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  #   sdk: openai
+  #   models:
+  #     max: qwen-max
+  #     plus: qwen-plus
+  #
+  # gemini:
+  #   api_key_env: GEMINI_API_KEY
+  #   base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  #   sdk: openai
+  #   models:
+  #     pro: gemini-2.5-pro
+  #     flash: gemini-2.5-flash
+
+# 路由规则：每个任务有 primary + fallback，failover 自动切换
+routing:
+  intent_classification:
+    primary: deepseek.v4
+    timeout: 10
+
+  simple_chat:
+    primary: deepseek.v4
+    timeout: 15
+
+  task_planning:
+    primary: deepseek.v4-pro
+    fallback: deepseek.v4
+    timeout: 30
+
+  vision_analysis:
+    primary: deepseek.v4-pro
+    timeout: 30
+
+  skill_generation:
+    primary: deepseek.v4-pro
+    fallback: deepseek.v4
+    timeout: 30
+
+policy:
+  retry_max: 2
+  retry_delay: 1.0
+  on_all_fail_message: "模型暂时不可用，请稍后再试"
+  cache_recent_planning: true
+  cache_size: 20

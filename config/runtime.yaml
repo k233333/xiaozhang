@@ -1,0 +1,154 @@
+# 运行时配置 — 资源管理 + 音频 + 游戏白名单 + 安全
+
+app:
+  name: XiaoZhang
+  version: "0.2.0"
+  log_level: INFO
+
+paths:
+  data_dir: ./data
+  logs_dir: ./logs
+  skills_dir: ./skills
+  models_dir: ./models
+  memory_db: ./data/memory.db
+  user_profile: ./data/USER.md
+  long_memory: ./data/MEMORY.md
+  knowledge_runtime: ./knowledge-runtime.json
+
+audio:
+  sample_rate: 16000
+  channels: 1
+  device: null                  # null = 系统默认；填字符串模糊匹配设备名
+  block_size: 480
+
+wake_word:
+  enabled: false                # D7 阶段才打开
+  primary: 小张                 # 第一段
+  secondary: [你好, 小张]        # 第二段（任一命中即可）
+  cancel_word: 取消
+  armed_window_seconds: 4
+  primary_threshold: 0.6
+  feedback_sound: true
+  model_dir: ./models/wake_word
+
+vad:
+  enabled: true
+  silence_threshold_seconds: 1.5
+  aggressiveness: 2             # webrtcvad fallback 用；Silero 用置信度阈值
+  silero_threshold: 0.5
+
+state_machine:
+  enable_voiceprint_check: false  # v2.0 暂不启用
+
+resource_manager:
+  watchdog_interval: 5
+  switch_delay: 3                 # 检测到游戏后延迟 3 秒再卸载（避免抖动）
+  notify_on_mode_change: true
+
+  detection:
+    by_process_name: true
+    by_gpu_load: true
+    by_fullscreen: true
+    by_cpu_load: true
+
+  thresholds:
+    gpu_busy_percent: 50
+    gpu_busy_duration_seconds: 10
+    cpu_busy_percent: 70
+    cpu_busy_duration_seconds: 30
+
+  force_mode: null                # standard | gaming | null（自动）
+
+# 游戏白名单（默认值，会自学习扩展）
+game_processes:
+  # FPS
+  - cod.exe
+  - ModernWarfare.exe
+  - BlackOps.exe
+  - Warzone.exe
+  - ow2.exe
+  - Overwatch.exe
+  - csgo.exe
+  - cs2.exe
+  - valorant.exe
+  - r5apex.exe
+  - bf2042.exe
+  - DeltaForceClient-Win64-Shipping.exe
+  # MOBA
+  - LeagueofLegends.exe
+  - LeagueClient.exe
+  - Dota2.exe
+  # 赛车
+  - ForzaHorizon4.exe
+  - ForzaHorizon5.exe
+  - ForzaHorizon6.exe
+  # MMO / 米哈游 / 原神 / 鸣潮
+  - GenshinImpact.exe
+  - YuanShen.exe
+  - StarRail.exe
+  - wuwa.exe
+  - Client-Win64-Shipping.exe
+
+# 黑名单：这些进程即使全屏/吃 GPU 也不进游戏模式
+non_game_processes:
+  - obs64.exe
+  - obs32.exe
+  - DaVinciResolve.exe
+  - Adobe Premiere Pro.exe
+  - HandBrake.exe
+  - vlc.exe
+  - mpv.exe
+
+# 自学习扩展（运行时自动追加，不要手改）
+auto_learned_games: []
+
+# 各模式下加载哪些本地模型
+mode_models:
+  standard:
+    - wake_word
+    - silero_vad
+    - sensevoice
+    - omniparser
+  gaming:
+    - wake_word
+
+local_models:
+  wake_word:
+    backend: cpu
+    model_path: models/wake_word/xiaozhang.onnx
+  silero_vad:
+    backend: cpu
+    model_path: models/silero_vad.onnx
+  sensevoice:
+    backend: directml
+    fallback: cpu
+    model_path: models/sensevoice_small.onnx
+  omniparser:
+    backend: directml
+    fallback: cpu
+    model_path: models/omniparser_v2/
+
+skills:
+  match_threshold: 0.85
+  builtin_dir: ./skills/_builtin
+  generated_dir: ./skills/_generated
+
+memory:
+  enable_vector: false
+  recent_session_lookback: 10
+
+actions:
+  automation_timeout_seconds: 10
+  screenshot_before_each_step: true
+  high_risk_require_confirmation: true
+  confirmation_mode: keyboard
+  high_risk_actions:
+    - send_message
+    - send_email
+    - payment
+    - input_verification_code
+    - delete_file
+    - uninstall_program
+    - shutdown
+    - restart
+    - submit_form_with_pii

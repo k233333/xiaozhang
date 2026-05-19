@@ -1,0 +1,64 @@
+[project]
+name = "xiaozhang"
+version = "0.1.0"
+description = "小张 - Windows 桌面语音助手"
+requires-python = ">=3.11"
+authors = [{ name = "k9211" }]
+
+dependencies = [
+    # 核心
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "structlog>=24.1",
+    "click>=8.1",
+    "rich>=13.7",
+    "anyio>=4.4",
+    # LLM 客户端（兼容 Anthropic 协议，DeepSeek 也支持）
+    "anthropic>=0.39",
+    "httpx>=0.27",
+    # 音频采集
+    "sounddevice>=0.4.7",
+    "soundfile>=0.12",
+    "numpy>=1.26",
+    "webrtcvad-wheels>=2.0.14",
+    # STT
+    "faster-whisper>=1.0",
+    # 唤醒词
+    "openwakeword>=0.6",
+    # 桌面自动化（Windows）
+    'pywinauto>=0.6.8 ; sys_platform == "win32"',
+    'uiautomation>=2.0.20 ; sys_platform == "win32"',
+    "pyautogui>=0.9.54",
+    "pygetwindow>=0.0.9",
+    # 截图
+    "mss>=9.0.1",
+    "pillow>=10.3",
+    # 系统托盘
+    "pystray>=0.19.5",
+    # 工具
+    "python-dotenv>=1.0",
+    "platformdirs>=4.2",
+]
+
+[project.optional-dependencies]
+web = ["playwright>=1.45"]
+vector = ["chromadb>=0.5"]
+dev = ["pytest>=8.2", "pytest-asyncio>=0.23", "ruff>=0.5", "mypy>=1.10"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "ASYNC"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
