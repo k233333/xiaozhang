@@ -157,3 +157,79 @@
 ### 准备关机
 代码完工 → uv 装包通过 → 端到端 10/10 烟测通过 → 临时数据清理完毕。
 执行 shutdown /s /t 30，30 秒后关机。
+
+
+---
+
+## Session 4 — 2026-05-19 凌晨/上午 — D + I + J 三选项
+
+### 用户指令
+- 选择 D（更多 builtin skill）+ I（测试套件）+ J（用户手册）
+- "我睡一会期间没办法帮你点击 run 你就自己跑就行"
+- 自主完成全部三项
+
+### D 选项 — 21 个新 builtin skill
+9 个 → 30 个，覆盖 80%+ 日常高频指令：
+- 浏览器：Chrome / Edge / YouTube / GitHub / 知乎 / 微博
+- 应用：VS Code / cmd / PowerShell / Kiro / 任务管理器 / Windows 设置
+- 系统控制：静音 / 音量+- / 上一首 / 下一首 / 暂停播放 / 显示桌面 / 截图
+
+### I 选项 — pytest 测试套件 99 项
+- 15 个测试文件覆盖核心模块：
+  - test_config（10 项）：配置加载、路由解析、SOUL 注入
+  - test_llm_router（7 项）：JSON 抽取、路由 fallback、超时处理
+  - test_safety（4 项）：高风险动作判定
+  - test_state_machine（7 项）：状态转移合法性、listener
+  - test_skill_parser（5 项）：frontmatter / 容错
+  - test_skills_loader_matcher（10 项）：加载、字面/模糊匹配、长意图不截胡
+  - test_skills_all_valid（8 项）：全部 builtin 校验合法（防手写错）
+  - test_actions_d（7 项）：D 级各 action 错误参数
+  - test_executor_downgrade（5 项）：D→C→A 三级降级链
+  - test_memory_store（7 项）：中英文 FTS5、会话生命周期、相似 intent
+  - test_game_detector（6 项）：黑白名单、强制模式、自学习 mock
+  - test_resource_manager（6 项）：实例化、模式切换 API
+  - test_cpu_guard（4 项）：负载查询
+  - test_action_schema（7 项）：Step/Plan pydantic 校验
+  - test_skill_stats（6 项）：成功率累积、低质量筛选
+- conftest.py：全局 fixture 用 tmp_path 自动隔离 data/ 和 knowledge-runtime.json，每个测试独立干净
+- 全部 mock 不发真 API、不开真窗口、不读真模型
+- **99 passed, 0 warnings, 5 秒跑完**
+
+### J 选项 — README 完整用户手册
+重写 README.md（350 行）包含：
+- 快速开始（3 步配好 + 测一句）
+- 命令分组速查表 + 30 个 skill 列表
+- 架构图（数据流 + 三个守护协程）
+- 配置文件说明（runtime.yaml / llm.yaml / soul.md）
+- 自学习机制流程图（首次/再次说同样的话差异）
+- 游戏感知触发条件表 + 标准/游戏模式资源对比
+- 开发指南（项目结构、跑测试、加 skill、加 LLM provider）
+- 8 个 FAQ
+
+### 顺手优化
+- mss.mss() → mss.MSS()（消除 Pillow 11+ deprecation warning）
+- .gitignore 加 .pytest_cache/
+
+### Git 历史
+```
+f238b88 feat: 21 个新 builtin skill + pytest 测试套件 99 项 + README 用户手册
+5f3baef refactor: CLI 重组为 sub-CLI 组（audio/memory/skills）
+ebfa2b7 perf: task_planning 切到 deepseek-chat（14s -> 6s -> 1.6s 命中）
+249df0e feat: 首次端到端验证通过 + LLM 自学习产出第一个 skill
+52750f0 v2.0: 小张桌面语音助手完整骨架
+```
+
+### 当前状态总结
+- 30 个 builtin skill + 99 个 pytest 测试 + 完整用户手册 + 5 个清晰 commit
+- 你醒来 `git log --oneline` 一眼看到全部进展
+- `uv run pytest tests/` 5 秒过 99 项
+- `uv run python main.py skills list` 看 30 个内置技能
+- README.md 是入门 + 速查 + 开发指南三合一
+
+### Open questions（未决）
+- E：真实语音环节调试（要你说话）
+- F：训练真"小张"唤醒词（要你录音）
+- H：接 Vision provider 让 A 级真能用
+
+### Session 4 结束动作
+代码全部写完 → 99/99 测试通过 → 临时数据清理完毕 → README 写完 → git commit 完成 → 撰写 session_log
