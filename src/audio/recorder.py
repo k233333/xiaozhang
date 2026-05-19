@@ -164,7 +164,7 @@ def record_once(
                         speech_started = True
                         start = time.monotonic()
                         log.info("检测到语音开始")
-                        _play_beep("start")
+                        # 不在这里播提示音 — 等转写确认是有效语音后再反馈
                     last_speech_ts = time.monotonic()
                     frames.append(samples_i16.copy())
                 elif speech_started:
@@ -173,7 +173,6 @@ def record_once(
                         silent_for_ms = (time.monotonic() - last_speech_ts) * 1000.0
                         if silent_for_ms >= silence_ms:
                             log.info("静音超时，结束录音", silent_ms=silent_for_ms)
-                            _play_beep("end")
                             break
                 # 还没开始说话 → 继续等（不超时）
 
@@ -187,6 +186,13 @@ def record_once(
 
     audio = np.concatenate(frames)
     duration = len(audio) / sr
+
+    # 过滤噪音：太短的录音（< 0.5 秒）当噪音丢弃
+    min_sec = getattr(settings.vad, "min_speech_seconds", 0.5)
+    if duration < min_sec:
+        log.info("录音太短，当噪音丢弃", duration_sec=round(duration, 2), min=min_sec)
+        return None
+
     log.info("录音完成", duration_sec=round(duration, 2), samples=len(audio))
     return AudioChunk(samples=audio, sample_rate=sr, duration_sec=duration)
 
