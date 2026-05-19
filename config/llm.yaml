@@ -5,37 +5,78 @@ providers:
   deepseek:
     api_key_env: DEEPSEEK_API_KEY
     base_url: https://api.deepseek.com/v1
-    sdk: openai            # 走 OpenAI 兼容 SDK
+    sdk: openai
+    supports_vision: false
     models:
-      v4: deepseek-chat
-      v4-pro: deepseek-reasoner
+      v4: deepseek-chat            # 快，1-3s
+      v4-pro: deepseek-reasoner    # 慢但能想，8-30s
 
-  # 未来加这些 provider 只解开注释 + 填 env：
+  # ---- Vision provider 选项 ----
+  # 解开下面任意一个，配上对应 env，并把 routing.vision_analysis.primary 切到它即可启用 A 级真视觉
+  #
+  # 选项 1：Qwen-VL（阿里云 DashScope）— OpenAI 兼容协议，国内速度最佳
+  #   1. 阿里云 DashScope 申请 key（白嫖 100 万 token）
+  #   2. 填 .env: DASHSCOPE_API_KEY=sk-xxx
+  qwen:
+    api_key_env: DASHSCOPE_API_KEY
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    sdk: openai
+    supports_vision: true
+    models:
+      vl-max: qwen-vl-max          # 最强视觉，慢
+      vl-plus: qwen-vl-plus        # 平衡，推荐
+      max: qwen-max                # 纯文本备用
+
+  # 选项 2：Gemini（Google AI Studio）— OpenAI 兼容协议
+  #   1. https://aistudio.google.com 申请 key（免费额度大）
+  #   2. .env: GEMINI_API_KEY=AIza...
+  gemini:
+    api_key_env: GEMINI_API_KEY
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    sdk: openai
+    supports_vision: true
+    models:
+      flash: gemini-2.5-flash         # 快、便宜、支持 vision，推荐
+      flash-lite: gemini-2.5-flash-lite  # 更便宜
+      pro: gemini-2.5-pro             # 最强但慢
+      flash-2-0: gemini-2.0-flash     # 上一代快速版
+
+  # 选项 3：Groq（超快推理服务，文本 only，无 vision）
+  #   1. https://console.groq.com/keys 申请 key
+  #   2. .env: GROQ_API_KEY=gsk_...
+  groq:
+    api_key_env: GROQ_API_KEY
+    base_url: https://api.groq.com/openai/v1
+    sdk: openai
+    supports_vision: false
+    models:
+      llama70b: llama-3.3-70b-versatile        # 主力 70B，~270 tok/s
+      llama8b: llama-3.1-8b-instant            # 8B，~700 tok/s，最快
+      qwen-32b: qwen-qwq-32b                   # 推理模型
+      kimi: moonshotai/kimi-k2-instruct-0905   # 月之暗面
+
+  # 选项 3：Claude（Anthropic 原生 SDK）
   # claude:
   #   api_key_env: ANTHROPIC_API_KEY
   #   base_url: https://api.anthropic.com
   #   sdk: anthropic
+  #   supports_vision: true
   #   models:
   #     sonnet: claude-sonnet-4-5
   #     opus: claude-opus-4
-  #
-  # qwen:
-  #   api_key_env: DASHSCOPE_API_KEY
-  #   base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
-  #   sdk: openai
-  #   models:
-  #     max: qwen-max
-  #     plus: qwen-plus
-  #
-  # gemini:
-  #   api_key_env: GEMINI_API_KEY
-  #   base_url: https://generativelanguage.googleapis.com/v1beta/openai
-  #   sdk: openai
-  #   models:
-  #     pro: gemini-2.5-pro
-  #     flash: gemini-2.5-flash
 
-# 路由规则：每个任务有 primary + fallback，failover 自动切换
+  # 选项 4：通过 OpenRouter 一站式访问几十个 vision 模型（包括 Claude / Gemini / GPT-4V）
+  # openrouter:
+  #   api_key_env: OPENROUTER_API_KEY
+  #   base_url: https://openrouter.ai/api/v1
+  #   sdk: openai
+  #   supports_vision: true
+  #   models:
+  #     gpt4o: openai/gpt-4o
+  #     claude-sonnet: anthropic/claude-sonnet-4.5
+  #     gemini-flash: google/gemini-2.5-flash
+
+# 路由规则：每个任务有 primary + fallback
 routing:
   intent_classification:
     primary: deepseek.v4
@@ -45,18 +86,34 @@ routing:
     primary: deepseek.v4
     timeout: 15
 
+  # bench_llm 实测（2026-05-19，3 轮 simple + 2 轮 medium + 1 轮 complex）：
+  # 简单任务中位延迟：deepseek.v4 0.81s | gemini.flash 1.34s | groq.llama70b 1.62s
+  # 中等任务中位延迟：groq.llama70b 0.98s | deepseek.v4 2.02s | gemini.flash 5.08s（25% 失败）
+  # 复杂任务质量：deepseek.v4-pro 85 分（28s）| groq.llama70b 70 分（1.5s）| deepseek.v4 70 分（2.5s）
+  # 综合稳定性：deepseek.v4 100% 成功，groq.llama70b 100% 成功但质量稍弱
+
+  # 默认规划路由：简单/中等任务用快档
   task_planning:
-    primary: deepseek.v4         # 简单任务 1-3s
-    fallback: deepseek.v4-pro    # chat 规划失败时由 reasoner 兜底
+    primary: deepseek.v4
+    fallback: groq.llama70b
     timeout: 30
 
-  vision_analysis:
+  # 复杂任务专用路由（runtime 检测到规划失败 / 步骤过多 / LLM 自我标记需要 escalate 时调用）
+  # v4-pro 质量分 85 显著高于其他档（70），值得为复杂任务等 28 秒
+  task_planning_complex:
     primary: deepseek.v4-pro
+    fallback: groq.llama70b
+    timeout: 60
+
+  # A 级视觉决策（截屏给视觉模型分析）
+  vision_analysis:
+    primary: gemini.flash         # 已配 key，唯一可用 vision
+    fallback: qwen.vl-plus        # 未配 key，永远 skip
     timeout: 30
 
   skill_generation:
-    primary: deepseek.v4         # skill 生成是结构化抽取，chat 够用
-    fallback: deepseek.v4-pro
+    primary: deepseek.v4          # 结构化抽取，跟 task_planning 同档稳定
+    fallback: groq.llama70b
     timeout: 30
 
 policy:

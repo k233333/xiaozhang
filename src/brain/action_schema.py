@@ -44,6 +44,10 @@ class Plan(BaseModel):
     skill_hit: bool = Field(default=False, description="是否命中已有 skill")
     skill_name: str | None = None
     confirm_required: bool = False
+    needs_complex_reasoning: bool = Field(
+        default=False,
+        description="LLM 自我标记：需要更强模型 escalate 到 v4-pro 重新规划",
+    )
     steps: list[Step] = Field(default_factory=list)
     note: str = Field(default="", description="给用户的简短反馈，可空")
 

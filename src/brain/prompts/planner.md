@@ -15,6 +15,7 @@
   "skill_hit": false,
   "skill_name": null,
   "confirm_required": false,
+  "needs_complex_reasoning": false,
   "note": "给用户的一句话反馈，可空",
   "steps": [
     {
@@ -29,6 +30,19 @@
   ]
 }
 ```
+
+### needs_complex_reasoning 的使用
+
+**默认 false**。
+
+只有遇到以下情况才标 true：
+- 任务涉及**多应用编排** + **条件判断**（如"对今天 D 盘 > 100MB 文件按日期分类后压缩"）
+- 任务需要**外部知识**（如"用我之前学的语法做这件事"）
+- 你**不确定如何拆解**且 step 数量 ≥ 4
+
+如果你只输出 1-3 步且都是常见动作（open/click/type），不要标 true。
+
+标 true 后 runtime 会再用更强的规划器（v4-pro）重新规划，所以 **steps 字段可以留空**让强模型自己想。
 
 ## 三级降级（每步都要标 `tier`）
 

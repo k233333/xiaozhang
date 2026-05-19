@@ -289,7 +289,11 @@ async def chat_simple(prompt_text: str, system: str = "") -> str:
     return result.text if result else ""
 
 
-async def plan(user_text: str, *, extra_context: str = ""):
+async def plan(user_text: str, *, extra_context: str = "", complex: bool = False):
+    """旧 plan() API 的兼容层；返回 Plan 对象（成功）或 None
+
+    complex=True 直接走 task_planning_complex 路由（v4-pro），用于 escalate。
+    """
     from src.brain.action_schema import Plan  # noqa: PLC0415
 
     sys_prompt = _read_prompt("planner.md")
@@ -297,8 +301,10 @@ async def plan(user_text: str, *, extra_context: str = ""):
     if extra_context:
         user_msg = f"{user_text}\n\n[已知上下文]\n{extra_context}"
 
+    task_type = "task_planning_complex" if complex else "task_planning"
+
     raw = await router.complete_json(
-        "task_planning",
+        task_type,
         system=_build_system(sys_prompt),
         user=user_msg,
     )

@@ -74,6 +74,17 @@ async def run_turn(user_text: str, sm: StateMachine | None = None) -> TurnResult
                 if sm is not None:
                     await sm.reset()
                 return TurnResult(user_text, None, None, False, False, note="LLM 规划失败")
+
+            # LLM 自我标记需要复杂推理 → 用 v4-pro 重新规划
+            if getattr(plan, "needs_complex_reasoning", False):
+                log.info("LLM 自标 needs_complex_reasoning，escalate 到 v4-pro", intent=plan.intent)
+                store.add_event(session_id, "escalate", "v4-pro", payload={"intent": plan.intent})
+                escalated = await llm_router.plan(user_text, extra_context=ctx, complex=True)
+                if escalated is not None:
+                    plan = escalated
+                else:
+                    log.warning("escalate 失败，沿用 v4 的规划")
+
             store.add_event(
                 session_id,
                 "plan",

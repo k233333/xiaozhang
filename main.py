@@ -89,12 +89,18 @@ def speak(text: tuple[str, ...]) -> None:
 
 
 @cli.command("status")
-def status_cmd() -> None:
+@click.option("--probe-load/--no-probe-load", default=True,
+              help="探测式加载所有可用本地模型一次后展示（默认开）")
+def status_cmd(probe_load: bool) -> None:
     """查看资源状态：模式 / 本地模型 / CPU 内存 / cpu_guard"""
     from src.core.cpu_guard import cpu_load_pct, get_guard_state, memory_pressure  # noqa: PLC0415
     from src.core.game_detector import detector  # noqa: PLC0415
     from src.core.resource_manager import resource_manager  # noqa: PLC0415
     from src.local_models.base import available_providers  # noqa: PLC0415
+
+    if probe_load:
+        # 一次性按当前模式尝试加载（仅状态查看用，看完不卸载也无所谓，进程退出自然清）
+        resource_manager.load_for_mode(resource_manager.mode)
 
     console.print(f"\n[bold cyan]当前模式：[/bold cyan]{resource_manager.mode.value}")
     state = detector.check_once()
@@ -133,6 +139,178 @@ def mode_cmd(target: str) -> None:
     else:
         resource_manager.force_mode(Mode(target))
         console.print(f"[green]已强制切到 {target} 模式[/green]")
+
+
+# ============================================================
+# vision 子组（H 选项）
+# ============================================================
+
+@cli.group("vision")
+def vision_group() -> None:
+    """视觉能力管理"""
+
+
+@vision_group.command("check")
+def vision_check() -> None:
+    """检查 vision provider 配置是否就绪"""
+    import os  # noqa: PLC0415
+    from src.core.config import llm_config  # noqa: PLC0415
+
+    console.print("\n[bold]Vision 路由：[/bold]")
+    route = llm_config.routing.get("vision_analysis")
+    if route is None:
+        console.print("[red]config/llm.yaml 没有配 vision_analysis 路由[/red]")
+        return
+
+    targets = [route.primary] + ([route.fallback] if route.fallback else [])
+    table = Table("target", "model", "vision", "key 已设", "状态")
+    for target in targets:
+        try:
+            cfg, model_name = llm_config.parse_target(target)
+        except (KeyError, ValueError) as e:
+            table.add_row(target, "-", "-", "-", f"[red]路由错误：{e}[/red]")
+            continue
+        has_key = bool(os.getenv(cfg.api_key_env))
+        v = "[green]y[/green]" if cfg.supports_vision else "[yellow]n（盲规划）[/yellow]"
+        k = "[green]y[/green]" if has_key else f"[red]缺 {cfg.api_key_env}[/red]"
+        if cfg.supports_vision and has_key:
+            status = "[green]就绪[/green]"
+        elif has_key:
+            status = "[yellow]能用但走盲规划[/yellow]"
+        else:
+            status = "[red]无 key[/red]"
+        table.add_row(target, model_name, v, k, status)
+    console.print(table)
+
+
+@vision_group.command("test")
+@click.argument("intent", nargs=-1)
+def vision_test(intent: tuple[str, ...]) -> None:
+    """实测 vision 链路（截屏当前屏幕，让 vision provider 决策）"""
+    from src.vision.vision_query import decide_from_screen  # noqa: PLC0415
+
+    text = " ".join(intent) or "找出当前屏幕上最显眼的可点击按钮"
+    console.print(f"[cyan]测试意图：[/cyan]{text}")
+    console.print("[dim]截屏中...[/dim]")
+    result = asyncio.run(decide_from_screen(text))
+    if result is None:
+        console.print("[red]vision 调用失败，看 logs/xiaozhang.log[/red]")
+        return
+    import json as _json  # noqa: PLC0415
+    console.print("[bold]决策：[/bold]")
+    console.print(_json.dumps(result, ensure_ascii=False, indent=2))
+
+
+# ============================================================
+# models 子组（本地模型下载/状态）
+# ============================================================
+
+@cli.group("models")
+def models_group() -> None:
+    """本地模型管理（下载、状态）"""
+
+
+@models_group.command("status")
+def models_status() -> None:
+    """看本地模型文件下载情况 + ONNX provider"""
+    from src.core.config import settings  # noqa: PLC0415
+    from src.local_models.base import available_providers, has_directml  # noqa: PLC0415
+
+    providers = available_providers()
+    console.print(f"[bold]ONNX Runtime providers：[/bold]{providers}")
+    if has_directml():
+        console.print("[green]DirectML 可用 — 本地模型会上 GPU[/green]")
+    else:
+        console.print("[yellow]DirectML 不可用 — 本地模型走 CPU。装 GPU 加速：[/yellow]")
+        console.print("  uv sync --extra gpu")
+    console.print()
+
+    table = Table("model", "path", "exists", "size")
+    for name, cfg in settings.local_models.items():
+        p = settings.resolve_path(cfg.model_path)
+        if p.is_file():
+            size = f"{p.stat().st_size / 1024 / 1024:.1f} MB"
+            ok = "[green]y[/green]"
+        elif p.is_dir():
+            files = list(p.rglob("*.onnx"))
+            if files:
+                total = sum(f.stat().st_size for f in files)
+                size = f"{total / 1024 / 1024:.1f} MB ({len(files)} ONNX)"
+                ok = "[green]y[/green]"
+            else:
+                size = "目录但无 ONNX"
+                ok = "[red]n[/red]"
+        else:
+            size = "-"
+            ok = "[red]n[/red]"
+        rel = str(p.relative_to(settings.project_root)) if p.is_absolute() else str(p)
+        table.add_row(name, rel, ok, size)
+    console.print(table)
+
+
+@models_group.command("download")
+@click.option("--vad/--no-vad", default=True, help="下载 Silero VAD（约 2 MB）")
+@click.option("--sensevoice/--no-sensevoice", default=False, help="装 funasr 自动拉 SenseVoice（首次约 234 MB）")
+@click.option("--omniparser/--no-omniparser", default=False, help="下载 OmniParser-v2（约 1.3 GB，慢）")
+def models_download(vad: bool, sensevoice: bool, omniparser: bool) -> None:
+    """下载本地模型（默认只下 Silero VAD，其他要显式开）"""
+    from src.core.config import settings  # noqa: PLC0415
+
+    if not (vad or sensevoice or omniparser):
+        console.print("[yellow]啥都没选，nothing to do[/yellow]")
+        return
+
+    if vad:
+        _download_silero_vad(settings.resolve_path(settings.paths.models_dir))
+    if sensevoice:
+        _install_sensevoice()
+    if omniparser:
+        _download_omniparser(settings.resolve_path(settings.paths.models_dir))
+
+    console.print("\n[bold]再跑 [cyan]xiaozhang models status[/cyan] 看下载结果[/bold]")
+
+
+def _download_silero_vad(models_dir) -> None:
+    import urllib.request  # noqa: PLC0415
+
+    target = models_dir / "silero_vad.onnx"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists() and target.stat().st_size > 1024 * 1024:
+        console.print(f"[green]Silero VAD 已存在[/green]: {target}")
+        return
+    url = "https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx"
+    console.print(f"[cyan]下载 Silero VAD[/cyan]: {url}")
+    try:
+        urllib.request.urlretrieve(url, target)
+        size = target.stat().st_size / 1024 / 1024
+        console.print(f"[green]Silero VAD 下载完成 {size:.1f} MB[/green]")
+    except Exception as e:  # noqa: BLE001
+        console.print(f"[red]下载失败：{e}[/red]")
+
+
+def _install_sensevoice() -> None:
+    console.print(
+        "[yellow]SenseVoice 需要先装 funasr。建议跑：[/yellow]"
+    )
+    console.print("  [cyan]uv sync --extra sensevoice[/cyan]")
+    console.print(
+        "[dim]装好后首次调用会从 ModelScope 自动下载约 234MB 到 ~/.cache/modelscope[/dim]"
+    )
+
+
+def _download_omniparser(models_dir) -> None:
+    console.print(
+        "[yellow]OmniParser-v2 较大（约 1.3 GB），推荐手动从 HuggingFace 下：[/yellow]"
+    )
+    console.print(
+        "  https://huggingface.co/microsoft/OmniParser-v2.0"
+    )
+    console.print(
+        f"[dim]下载后放到：{models_dir / 'omniparser_v2'}[/dim]"
+    )
+    console.print(
+        "[dim]目录下应有 icon_detect/model.onnx 和 icon_caption/model.onnx[/dim]"
+    )
 
 
 # ============================================================

@@ -152,6 +152,7 @@ class ProviderCfg(BaseModel):
     api_key_env: str
     base_url: str | None = None
     sdk: str = "openai"
+    supports_vision: bool = False
     models: dict[str, str] = Field(default_factory=dict)
 
     @property
