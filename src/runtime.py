@@ -65,18 +65,25 @@ async def run_turn(user_text: str, sm: StateMachine | None = None) -> TurnResult
             skill_hit = True
             store.add_event(session_id, "plan", "skill_hit", payload={"skill": hit.name})
 
-        # 2. 没命中 → 调用 LLM 现规划
+        # 2. 没命中 → 意图复杂度预判 + 调用 LLM 现规划
         if plan is None:
+            from src.brain.intent_classifier import Complexity, classify  # noqa: PLC0415
+
+            complexity = classify(user_text)
+            use_complex = complexity == Complexity.COMPLEX
+            if use_complex:
+                log.info("意图分类器判定为复杂任务，直接走 v4-pro", text=user_text[:30])
+
             ctx = recall.build_context(user_text)
-            plan = await llm_router.plan(user_text, extra_context=ctx)
+            plan = await llm_router.plan(user_text, extra_context=ctx, complex=use_complex)
             if plan is None:
                 store.end_session(session_id, success=False, note="planning_failed")
                 if sm is not None:
                     await sm.reset()
                 return TurnResult(user_text, None, None, False, False, note="LLM 规划失败")
 
-            # LLM 自我标记需要复杂推理 → 用 v4-pro 重新规划
-            if getattr(plan, "needs_complex_reasoning", False):
+            # LLM 自我标记需要复杂推理 → 用 v4-pro 重新规划（仅在非 complex 路径时 escalate）
+            if not use_complex and getattr(plan, "needs_complex_reasoning", False):
                 log.info("LLM 自标 needs_complex_reasoning，escalate 到 v4-pro", intent=plan.intent)
                 store.add_event(session_id, "escalate", "v4-pro", payload={"intent": plan.intent})
                 escalated = await llm_router.plan(user_text, extra_context=ctx, complex=True)

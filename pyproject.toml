@@ -38,12 +38,21 @@ dependencies = [
     # 工具
     "python-dotenv>=1.0",
     "platformdirs>=4.2",
+    "psutil>=7.2.2",
+    "gputil>=1.4.0",
+    "openai>=2.37.0",
+    "pywin32>=311",
 ]
 
 [project.optional-dependencies]
+# AMD 7900 XTX / 任何 DirectML 兼容 GPU — 一次性激活：uv sync --extra gpu
+gpu = ["onnxruntime-directml>=1.18"]
+# SenseVoice 中文 ASR 主路径（D8 阶段启用，约 234MB 自动下载）
+sensevoice = ["funasr>=1.1", "modelscope>=1.18"]
+# 网页操作
 web = ["playwright>=1.45"]
+# 向量记忆
 vector = ["chromadb>=0.5"]
-dev = ["pytest>=8.2", "pytest-asyncio>=0.23", "ruff>=0.5", "mypy>=1.10"]
 
 [build-system]
 requires = ["hatchling"]
