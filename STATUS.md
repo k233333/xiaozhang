@@ -1,4 +1,4 @@
-# 小张项目状态总结（2026-05-19）
+# 小张项目状态总结（2026-05-20）
 
 > 本文件供下一个对话窗口的 AI 快速理解项目全貌。每次重大进展后更新。
 
@@ -178,6 +178,12 @@ git log --oneline                     # 看 git 历史
 - **加入唤醒词调试日志**：`wake_word_loop.py` 新增静音块统计（每 30 块输出 RMS）、能量触发日志、分类器概率日志，方便诊断"为什么没反应"
 - **守护进程已重启**：matcher fix 已生效，文字测试"打开网页"正确路由到 LLM 规划
 - **待验证**：用户对着麦克风说"小张"能否触发唤醒词（RMS 日志会显示声音是否到达）
+
+## 2026-05-20 会话进展
+
+- **Hermes Agent 部署**：NousResearch/hermes-agent v0.14.0 克隆到 `D:\11111begin\hermes-agent\`，venv + 依赖安装完成，DeepSeek API Key 已配置，89 个 skills 同步，模型设为 `deepseek/deepseek-chat`。`hermes` 命令可用（`~/.local/bin/hermes.exe`）
+- **项目引导文件**：创建 `PROJECT_BRIEF.md` 供 Hermes 接手小张项目时快速理解全貌
+- **提交更改**：matcher 阈值修复 + 唤醒词调试日志 + 两个自动生成的 skill 已提交（085b322）
 
 1. 项目的 steering 文件在 `.kiro/steering/project-plan.md`，Kiro 会自动加载
 2. 所有架构决策在 `PLAN.md`
