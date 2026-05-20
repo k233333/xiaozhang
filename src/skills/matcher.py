@@ -78,8 +78,8 @@ def match(user_text: str, skills: list[SkillSpec]) -> SkillSpec | None:
             if results:
                 top = results[0]
                 distance = top.get("distance", 999)
-                # ChromaDB 默认用 L2 距离，越小越相似；阈值经验值 < 1.0
-                if distance < 1.0:
+                # ChromaDB L2 距离：越小越相似。< 0.35 才算有效召回，否则退回 LLM 规划
+                if distance < 0.35:
                     skill_name = top.get("skill_name", "")
                     matched = next((s for s in skills if s.name == skill_name), None)
                     if matched:
@@ -89,12 +89,18 @@ def match(user_text: str, skills: list[SkillSpec]) -> SkillSpec | None:
                             distance=round(distance, 3),
                         )
                         return matched
+                else:
+                    log.info(
+                        "向量匹配距离过大，退回 LLM 规划",
+                        skill=top.get("skill_name", "?"),
+                        distance=round(distance, 3),
+                    )
         except Exception as e:  # noqa: BLE001
             log.debug("向量召回失败（可忽略）", err=str(e))
 
     if best:
-        log.debug(
-            "skill 最佳模糊匹配未达阈值",
+        log.info(
+            "skill 最佳模糊匹配未达阈值，退回 LLM 规划",
             skill=best[0].name,
             trigger=best[1],
             ratio=round(best[2], 3),

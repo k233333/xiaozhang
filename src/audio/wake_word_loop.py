@@ -42,6 +42,7 @@ class WakeWordLoop:
     def __init__(self, sm: StateMachine) -> None:
         self.sm = sm
         self._last_trigger_ts: float = 0.0
+        self._silent_chunks: int = 0
 
     async def run(self) -> None:
         """主循环：持续录 2 秒片段 → 检测唤醒词"""
@@ -84,10 +85,16 @@ class WakeWordLoop:
             rms = float(np.sqrt(np.mean(audio.astype(np.float32) ** 2)))
             if rms < ENERGY_THRESHOLD:
                 # 纯静音，跳过（CPU 0%）
+                # 每 30 个静音块输出一次 RMS，确认麦克风在工作
+                self._silent_chunks += 1
+                if self._silent_chunks % 30 == 0:
+                    log.info("静音块统计", silent_chunks=self._silent_chunks, last_rms=round(rms, 1), threshold=ENERGY_THRESHOLD)
                 continue
 
-            # 跑分类器
+            # 有声音，跑分类器
+            log.info("能量触发", rms=round(rms, 1), threshold=ENERGY_THRESHOLD)
             prob = detect(audio, sr)
+            log.info("分类器结果", prob=round(prob, 4), wake_threshold=threshold)
             if prob >= threshold:
                 # 冷却检查
                 now = time.time()
