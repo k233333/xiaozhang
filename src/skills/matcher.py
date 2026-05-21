@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 
 from src.core.config import settings
@@ -12,6 +13,15 @@ from src.core.logger import get_logger
 from src.skills.loader import SkillSpec
 
 log = get_logger(__name__)
+
+
+@dataclass
+class MatchResult:
+    """skill 命中结果，附带匹配到的 trigger 词（用于 {KEYWORD} 参数注入）"""
+    skill: SkillSpec
+    trigger: str   # 实际命中的那条 trigger 字符串
+    score: float   # 相似度或覆盖率
+    method: str    # "literal" | "fuzzy" | "vector"
 
 
 def _ratio(a: str, b: str) -> float:
@@ -106,4 +116,63 @@ def match(user_text: str, skills: list[SkillSpec]) -> SkillSpec | None:
             ratio=round(best[2], 3),
             threshold=threshold,
         )
+    return None
+
+
+def match_with_trigger(user_text: str, skills: list[SkillSpec]) -> MatchResult | None:
+    """同 match()，但同时返回命中的 trigger 字符串，供 {KEYWORD} 参数注入。"""
+    if not user_text or not skills:
+        return None
+
+    text = user_text.strip()
+    threshold = settings.skills.match_threshold
+    coverage_threshold = 0.7
+
+    # 1. 字面包含（含前缀匹配）
+    # 规则：trigger 在 text 中 + 覆盖率 >= 0.7
+    #   或：text.startswith(trigger) + trigger 长度 >= 2（前缀模式，关键词在后）
+    best_literal: tuple[SkillSpec, str, float] | None = None
+    for s in skills:
+        for trig in s.triggers:
+            if not trig or trig not in text:
+                continue
+            coverage = len(trig) / max(1, len(text))
+            is_prefix = text.startswith(trig) and len(trig) >= 2
+            if coverage >= coverage_threshold or is_prefix:
+                score = coverage if not is_prefix else (coverage + 0.5)  # 前缀加权
+                if best_literal is None or score > best_literal[2]:
+                    best_literal = (s, trig, score)
+    if best_literal:
+        return MatchResult(skill=best_literal[0], trigger=best_literal[1],
+                           score=min(best_literal[2], 1.0), method="literal")
+
+    # 2. 模糊相似
+    best: tuple[SkillSpec, str, float] | None = None
+    for s in skills:
+        for trig in s.triggers:
+            if not trig:
+                continue
+            r = _ratio(text, trig)
+            if best is None or r > best[2]:
+                best = (s, trig, r)
+    if best and best[2] >= threshold:
+        return MatchResult(skill=best[0], trigger=best[1], score=best[2], method="fuzzy")
+
+    # 3. 向量召回
+    if settings.memory.enable_vector:
+        try:
+            from src.memory.vector import query as vec_query  # noqa: PLC0415
+            results = vec_query(text, n=1)
+            if results:
+                top = results[0]
+                if top.get("distance", 999) < 0.35:
+                    skill_name = top.get("skill_name", "")
+                    matched = next((s for s in skills if s.name == skill_name), None)
+                    if matched:
+                        trigger = matched.triggers[0] if matched.triggers else text
+                        return MatchResult(skill=matched, trigger=trigger,
+                                           score=1 - top["distance"], method="vector")
+        except Exception as e:  # noqa: BLE001
+            log.debug("向量召回失败（可忽略）", err=str(e))
+
     return None

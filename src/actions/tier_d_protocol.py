@@ -137,6 +137,18 @@ async def _h_say(step: Step) -> StepResult:
     return StepResult(True)
 
 
+async def _h_douyin_search_play(step: Step) -> StepResult:
+    """搜索抖音创作者/关键词并播放最新视频。step.text 为搜索关键词。"""
+    keyword = (step.text or "").strip()
+    if not keyword:
+        return StepResult(False, "douyin_search_play 缺少关键词（text 字段）")
+    log.info("抖音搜索播放", keyword=keyword)
+    from src.actions.douyin_actions import search_play_latest  # noqa: PLC0415
+    loop = asyncio.get_running_loop()
+    ok = await loop.run_in_executor(None, lambda: search_play_latest(keyword))
+    return StepResult(ok, f"搜索播放'{keyword}'完成" if ok else f"搜索播放'{keyword}'失败")
+
+
 async def _h_run_cmd(step: Step) -> StepResult:
     """通用 shell 执行（debug 用，慎用）"""
     if not step.cmd:
@@ -167,4 +179,5 @@ _HANDLERS = {
     "wait": _h_wait,
     "say": _h_say,
     "run_cmd": _h_run_cmd,
+    "douyin_search_play": _h_douyin_search_play,
 }

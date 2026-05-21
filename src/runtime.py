@@ -9,12 +9,13 @@ from dataclasses import dataclass
 
 from src.actions.executor import PlanReport, execute_plan
 from src.brain import llm_router
-from src.brain.action_schema import Plan
+from src.brain.action_schema import Plan, Step
 from src.core.logger import get_logger, new_trace_id
 from src.core.state_machine import State, StateMachine
 from src.learning import skill_stats, workflow_recorder
 from src.memory import recall, store
 from src.skills import loader, matcher
+from src.skills.matcher import match_with_trigger
 
 log = get_logger(__name__)
 
@@ -29,6 +30,43 @@ class TurnResult:
     skill_hit: bool
     success: bool
     note: str = ""
+
+
+_INTENT_PREFIXES = (
+    "我想看", "想看", "看看", "帮我搜",
+    "在抖音搜", "抖音搜", "打开抖音搜", "抖音找", "看抖音的", "搜抖音",
+    "在b站搜", "b站搜", "bilibili搜",
+    "搜索", "帮我找", "找一下",
+)
+
+
+def _extract_search_arg(user_text: str, trigger: str) -> str:
+    """从用户原文或 trigger 中提取搜索关键词，剔除意图前缀。
+
+    优先从 user_text 提取（更完整），再从 trigger 提取。
+    "我想看不惑兄弟" → "不惑兄弟"
+    "在抖音搜李子柒最新视频" → "李子柒最新视频"
+    """
+    for src in (user_text, trigger):
+        for prefix in sorted(_INTENT_PREFIXES, key=len, reverse=True):  # 长前缀优先
+            if src.startswith(prefix):
+                rest = src[len(prefix):].strip()
+                if rest:
+                    return rest
+    # 无法剥离 → 用 trigger 本身（短 trigger 本来就是关键词，如"不惑兄弟"）
+    return trigger
+
+
+def _inject_keyword(steps: list[Step], keyword: str) -> list[Step]:
+    """把 steps 里所有 text='{KEYWORD}' 替换为实际关键词。返回新的 Step 列表。"""
+    if not keyword:
+        return steps
+    result = []
+    for s in steps:
+        if s.text and "{KEYWORD}" in s.text:
+            s = s.model_copy(update={"text": s.text.replace("{KEYWORD}", keyword)})
+        result.append(s)
+    return result
 
 
 async def run_turn(user_text: str, sm: StateMachine | None = None) -> TurnResult:
@@ -46,24 +84,38 @@ async def run_turn(user_text: str, sm: StateMachine | None = None) -> TurnResult
         await sm.transition(State.EXECUTING)
 
     try:
-        # 1. 路由：先查 skill
+        # 1. 路由：先查 skill（返回命中的 trigger 词，用于 {KEYWORD} 注入）
         skills = loader.load_all()
-        hit = matcher.match(user_text, skills)
+        match_info = match_with_trigger(user_text, skills)
         plan: Plan | None = None
         skill_hit = False
 
-        if hit is not None:
-            log.info("命中 skill", skill=hit.name)
+        if match_info is not None:
+            hit = match_info.skill
+            # 若 skill 有 argument-hint，从用户原文中剥离意图前缀提取实际关键词
+            # 否则直接用 trigger（对于"不惑兄弟"这种纯关键词 trigger 也正确）
+            has_arg_hint = bool(hit.frontmatter.get("argument-hint"))
+            keyword = (
+                _extract_search_arg(user_text, match_info.trigger)
+                if has_arg_hint
+                else match_info.trigger
+            )
+            log.info("命中 skill", skill=hit.name, trigger=match_info.trigger,
+                     keyword=keyword, method=match_info.method)
+
+            # 将 steps 中的 {KEYWORD} 占位替换为实际关键词
+            injected_steps = _inject_keyword(hit.steps, keyword)
+
             plan = Plan(
                 intent=hit.name,
                 skill_hit=True,
                 skill_name=hit.name,
                 confirm_required=hit.confirm_required,
-                steps=hit.steps,
+                steps=injected_steps,
                 note=hit.description,
             )
             skill_hit = True
-            store.add_event(session_id, "plan", "skill_hit", payload={"skill": hit.name})
+            store.add_event(session_id, "plan", "skill_hit", payload={"skill": hit.name, "keyword": keyword})
 
         # 2. 没命中 → 意图复杂度预判 + 调用 LLM 现规划
         if plan is None:
