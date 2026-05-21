@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(docker --version)",
+      "Bash(wsl --version)",
+      "Bash(uv --version)",
+      "Bash(ffmpeg --version)",
+      "Bash(git --version)",
+      "Bash(bash setup-hermes.sh)",
+      "Bash(mkdir -p __TRACKED_VAR__/.local/bin)",
+      "Bash(ln -sf __CMDSUB_OUTPUT__/venv/Scripts/hermes.exe __TRACKED_VAR__/.local/bin/hermes)",
+      "Bash(cd *)",
+      "Bash(cmd.exe *)",
+      "Bash(file __TRACKED_VAR__/.local/bin/hermes)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(curl -s --max-time 10 https://api.deepseek.com/v1/models -H \"Authorization: Bearer sk-1c33f4bdcb6e43b1b057a6f88fba3a32\")",
+      "Bash(curl -s --max-time 10 \"https://generativelanguage.googleapis.com/v1beta/openai/models\" -H \"Authorization: Bearer AIzaSyC7n94ZmY6K3e8OzvIhEUOjkYwXysCRiwk\")",
+      "Bash(curl *)",
+      "Bash(grep -o '\"model\"[^,}]*' __TRACKED_VAR__/.hermes/sessions/session_20260520_203041_eca508.json)",
+      "Bash(grep -o '\"provider\"[^,}]*' __TRACKED_VAR__/.hermes/sessions/session_20260520_203041_eca508.json)",
+      "Bash(shutdown *)",
+      "Bash(powershell *)",
+      "Bash(/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe *)"
+    ]
+  }
+}
