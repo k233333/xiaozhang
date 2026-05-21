@@ -657,10 +657,23 @@ async def _run_daemon() -> None:
                 continue
 
             console.print(f"[cyan]你说：[/cyan]{tr.text}")
-            result = await run_turn(tr.text, sm=sm)
-            console.print(
-                f"[bold]结果：[/bold]{'[green]成功[/green]' if result.success else '[red]失败[/red]'}"
-            )
+
+            # Hermes 模式：转发给本地 Hermes agent 执行
+            _hermes_cfg = getattr(settings, "hermes", None)
+            if _hermes_cfg and getattr(_hermes_cfg, "enabled", False):
+                from src.hermes_dispatch import dispatch_to_hermes  # noqa: PLC0415
+                h_result = await dispatch_to_hermes(tr.text)
+                if h_result.output:
+                    console.print(f"[bold cyan]Hermes:[/bold cyan] {h_result.output}")
+                console.print(
+                    f"[bold]结果：[/bold]{'[green]成功[/green]' if h_result.success else '[red]失败[/red]'}"
+                )
+                await sm.reset()
+            else:
+                result = await run_turn(tr.text, sm=sm)
+                console.print(
+                    f"[bold]结果：[/bold]{'[green]成功[/green]' if result.success else '[red]失败[/red]'}"
+                )
 
     except KeyboardInterrupt:
         console.print("\n[yellow]退出守护[/yellow]")

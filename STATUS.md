@@ -179,6 +179,29 @@ git log --oneline                     # 看 git 历史
 - **守护进程已重启**：matcher fix 已生效，文字测试"打开网页"正确路由到 LLM 规划
 - **待验证**：用户对着麦克风说"小张"能否触发唤醒词（RMS 日志会显示声音是否到达）
 
+## 2026-05-21 会话进展
+
+- **Hermes API 修复**：`~/.hermes/config.yaml` 主模型从 `deepseek/deepseek-chat`（OpenRouter 格式，无 key 超时 20s）改为 `deepseek-chat` + `provider: deepseek`（直连 DeepSeek API，~7s 响应）
+- **Git Bash 配置**：Hermes terminal tool 在 Windows 需要 bash。已将 `HERMES_GIT_BASH_PATH=C:\Users\k9211\scoop\apps\git\current\usr\bin\bash.exe` 写入 `~/.hermes/.env`，terminal 工具现已可用
+- **Hermes Dispatch 模块**：新建 `src/hermes_dispatch.py`，异步调用 `hermes -z "<text>"`，捕获 UTF-8 输出，120s 超时保护。实测"打开记事本"7.4s 成功执行
+- **语音→Hermes 接管**：`main.py` `_run_daemon` 主循环加了 `hermes.enabled` 分支——当 `config/runtime.yaml` 里 `hermes.enabled: true` 时，STT 文本直接转发 Hermes 而不走 `run_turn`；改回 `false` 恢复原有行为
+- **HermesCfg pydantic 模型**：`src/core/config.py` 新增 `HermesCfg` 类和 `RuntimeSettings.hermes` 字段
+- **Windows Desktop Skill**：新建 `~/.hermes/skills/windows-desktop/SKILL.md`，包含全部 apps.yaml 路径 + PowerShell 启动方式 + 系统控制（音量/截图/锁屏/媒体键）+ 抖音搜索兜底方案
+
+### 当前 Hermes 性能（修复后）
+| 场景 | 耗时 |
+|------|------|
+| `hermes --help` / `hermes version` | 1.0s |
+| `hermes -z "打开记事本"` | 7.4s |
+| `hermes -z "just say OK"` | 5.3s |
+
+### 启用 Hermes 模式
+```yaml
+# config/runtime.yaml
+hermes:
+  enabled: true   # 改这一行即可切换
+```
+
 ## 2026-05-20 会话进展
 
 - **Hermes Agent 部署**：NousResearch/hermes-agent v0.14.0 克隆到 `D:\11111begin\hermes-agent\`，venv + 依赖安装完成，DeepSeek API Key 已配置，89 个 skills 同步，模型设为 `deepseek/deepseek-chat`。`hermes` 命令可用（`~/.local/bin/hermes.exe`）

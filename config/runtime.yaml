@@ -151,6 +151,12 @@ memory:
   enable_vector: true
   recent_session_lookback: 10
 
+hermes:
+  enabled: false                # true = 语音识别后转发给 Hermes agent 执行（而非小张自身）
+  exe_path: "D:\\11111begin\\hermes-agent\\venv\\Scripts\\hermes.exe"
+  cwd: "D:\\11111begin\\hermes-agent"
+  timeout_seconds: 120
+
 actions:
   automation_timeout_seconds: 10
   screenshot_before_each_step: true

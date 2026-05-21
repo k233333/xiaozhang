@@ -112,6 +112,13 @@ class MemoryCfg(BaseModel):
     recent_session_lookback: int = 10
 
 
+class HermesCfg(BaseModel):
+    enabled: bool = False
+    exe_path: str = r"D:\11111begin\hermes-agent\venv\Scripts\hermes.exe"
+    cwd: str = r"D:\11111begin\hermes-agent"
+    timeout_seconds: int = 120
+
+
 class ActionsCfg(BaseModel):
     automation_timeout_seconds: int = 10
     screenshot_before_each_step: bool = True
@@ -135,6 +142,7 @@ class RuntimeSettings(BaseModel):
     local_models: dict[str, LocalModelCfg] = Field(default_factory=dict)
     skills: SkillsCfg
     memory: MemoryCfg
+    hermes: HermesCfg = Field(default_factory=HermesCfg)
     actions: ActionsCfg
 
     project_root: Path = Field(default=PROJECT_ROOT)
