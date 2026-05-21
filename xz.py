@@ -47,39 +47,28 @@ def cmd_douyin_search(keyword: str) -> int:
 
 
 def cmd_open_app(app: str) -> int:
-    """打开应用，支持名称或路径"""
+    """打开应用 — 自动搜索已安装软件（扫描开始菜单快捷方式）"""
     import subprocess
-    import yaml
-    from pathlib import Path
+    from src.utils.app_scanner import search
 
     _toast(f"正在打开「{app}」…")
 
-    apps_file = Path(__file__).parent / "config" / "apps.yaml"
-    app_lower = app.lower().strip()
+    results = search(app)
+    if results:
+        target = results[0]["target"]
+        name = results[0]["name"]
+        try:
+            subprocess.Popen([target], shell=False)
+        except OSError:
+            subprocess.Popen(["cmd", "/c", "start", "", target], shell=False)
+        _toast(f"已打开 {name}")
+        print(f"[OK] {name} → {target}")
+        return 0
 
-    if apps_file.exists():
-        data = yaml.safe_load(apps_file.read_text(encoding="utf-8")) or {}
-        apps = data.get("apps", {})
-        for name, info in apps.items():
-            aliases = [name.lower()] + [a.lower() for a in info.get("aliases", [])]
-            if app_lower in aliases:
-                uri = info.get("uri")
-                path = info.get("path")
-                if uri:
-                    subprocess.Popen(["cmd", "/c", "start", "", uri], shell=False)
-                    _toast(f"已打开 {name}")
-                    print(f"[OK] 通过URI打开: {uri}")
-                    return 0
-                if path:
-                    subprocess.Popen(["cmd", "/c", "start", "", path], shell=False)
-                    _toast(f"已打开 {name}")
-                    print(f"[OK] 通过路径打开: {path}")
-                    return 0
-
-    # 找不到时直接尝试 Start-Process
+    # 没找到 — 尝试 Start-Process 兜底
     subprocess.Popen(["powershell", "-Command", f"Start-Process '{app}'"], shell=False)
-    _toast(f"已打开 {app}")
-    print(f"[OK] Start-Process {app}")
+    _toast(f"尝试打开 {app}")
+    print(f"[OK] Start-Process {app}（未在索引中找到精确匹配）")
     return 0
 
 

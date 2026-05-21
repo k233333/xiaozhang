@@ -1,0 +1,455 @@
+{
+  "timestamp": 1779382892.0068932,
+  "apps": [
+    {
+      "name": "7-Zip File Manager",
+      "target": "D:\\Program Files\\7-Zip\\7zFM.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\7-Zip\\7-Zip File Manager.lnk"
+    },
+    {
+      "name": "Access",
+      "target": "C:\\Program Files\\Microsoft Office\\Root\\VFS\\Windows\\Installer\\{90160000-000F-0000-1000-0000000FF1CE}\\accicons.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Access.lnk"
+    },
+    {
+      "name": "Adobe Acrobat DC",
+      "target": "D:\\Program Files (x86)\\Acrobat DC\\Acrobat\\Acrobat.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Adobe Acrobat DC.lnk"
+    },
+    {
+      "name": "Adobe Acrobat Distiller DC",
+      "target": "D:\\Program Files (x86)\\Acrobat DC\\Acrobat\\acrodist.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Adobe Acrobat Distiller DC.lnk"
+    },
+    {
+      "name": "Adobe Photoshop 2021",
+      "target": "D:\\Software\\Adobe Photoshop 2021\\Photoshop.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Adobe Photoshop 2021.lnk"
+    },
+    {
+      "name": "Ahk2Exe",
+      "target": "C:\\Program Files\\AutoHotkey\\UX\\AutoHotkeyUX.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Ahk2Exe.lnk"
+    },
+    {
+      "name": "AMD Bug Report Tool",
+      "target": "C:\\Windows\\SysWOW64\\AMDBugReportTool.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\AMD Bug Report Tool\\AMD Bug Report Tool.lnk"
+    },
+    {
+      "name": "AMD Software꞉ Adrenalin Edition",
+      "target": "C:\\Program Files\\AMD\\CNext\\CNext\\RadeonSoftware.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\AMD Software꞉ Adrenalin Edition\\AMD Software꞉ Adrenalin Edition.lnk"
+    },
+    {
+      "name": "Android Studio",
+      "target": "D:\\Program Files\\Android\\bin\\studio64.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Android Studio\\Android Studio.lnk"
+    },
+    {
+      "name": "Antigravity",
+      "target": "D:\\Antigravity\\Antigravity.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Antigravity\\Antigravity.lnk"
+    },
+    {
+      "name": "AutoHotkey Dash",
+      "target": "C:\\Program Files\\AutoHotkey\\UX\\AutoHotkeyUX.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\AutoHotkey Dash.lnk"
+    },
+    {
+      "name": "AutoHotkey Window Spy",
+      "target": "C:\\Program Files\\AutoHotkey\\UX\\AutoHotkeyUX.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\AutoHotkey Window Spy.lnk"
+    },
+    {
+      "name": "Chem3D 21.0.0",
+      "target": "D:\\Program Files (x86)\\CHEMDRAW\\Chem3D\\Chem3D.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\ChemOffice 2021\\Chem3D 21.0.0.lnk"
+    },
+    {
+      "name": "ChemDraw 21.0.0",
+      "target": "D:\\Program Files (x86)\\CHEMDRAW\\ChemDraw\\ChemDraw.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\ChemOffice 2021\\ChemDraw 21.0.0.lnk"
+    },
+    {
+      "name": "ChemFinder 21.0.0",
+      "target": "D:\\Program Files (x86)\\CHEMDRAW\\ChemFinder\\ChemFinder.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\ChemOffice 2021\\ChemFinder 21.0.0.lnk"
+    },
+    {
+      "name": "ChemFinder for Office 21.0.0",
+      "target": "D:\\Program Files (x86)\\CHEMDRAW\\ChemFinder\\sC:\\WINDOWS\\Installer\\{C36CFD8B-A463-4FC4-B596-2886DEA9D943}\\ChemFinderForOffic_53C9691BC61B4E7F8E6E4F63AFB2BE98.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\ChemOffice 2021\\ChemFinder for Office 21.0.0.lnk"
+    },
+    {
+      "name": "ChemOffice+",
+      "target": "C:\\Users\\k9211\\AppData\\Local\\Programs\\chemofficeplus\\ChemOffice+.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\ChemOffice+.lnk"
+    },
+    {
+      "name": "ChemScript Demo .Net",
+      "target": "C:\\ProgramData\\PerkinElmerInformatics\\ChemOffice2021\\ChemScript\\Examples\\Demo\\jC:\\WINDOWS\\Installer\\{86CCD8AB-96DC-40D8-9FE6-216697A0F30C}\\CSDemoNet_299D03008AD14548BFBA2E92148BE888.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\ChemOffice 2021\\ChemScript 21.0.0\\ChemScript Demo .Net.lnk"
+    },
+    {
+      "name": "ChemScript Upgrader",
+      "target": "C:\\Program Files\\PerkinElmerInformatics\\ChemOffice2021\\ChemScript\\Upgrader\\12+toLatest\\UpgradeWizard.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\ChemOffice 2021\\ChemScript 21.0.0\\ChemScript Upgrader.lnk"
+    },
+    {
+      "name": "Clash Verge",
+      "target": "D:\\Program Files\\Clash Verge\\clash-verge.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Clash Verge.lnk"
+    },
+    {
+      "name": "Cursor",
+      "target": "D:\\Software\\cursor\\Cursor.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Cursor\\Cursor.lnk"
+    },
+    {
+      "name": "Database Compare",
+      "target": "C:\\Program Files (x86)\\Microsoft Office\\Office16\\DCF\\DATABASECOMPARE.EXE\"pC:\\Program Files\\Microsoft Office\\Root\\VFS\\Windows\\Installer\\{90160000-000F-0000-1000-0000000FF1CE}\\dbcicons.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Microsoft Office 工具\\Database Compare.lnk"
+    },
+    {
+      "name": "Database Subscriptions",
+      "target": "D:\\Program Files (x86)\\CHEMDRAW\\Common\\pC:\\WINDOWS\\Installer\\{C36CFD8B-A463-4FC4-B596-2886DEA9D943}\\DBsubscriptions_E0BB7FE91DB542CA84DE689C858489D5.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\ChemOffice 2021\\Database Subscriptions.lnk"
+    },
+    {
+      "name": "Desktop Overlay Host",
+      "target": "D:\\RivaTuner Statistics Server\\DesktopOverlayHost.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\RivaTuner Statistics Server\\Desktop Overlay Host.lnk"
+    },
+    {
+      "name": "Dropbox Redeem Launcher",
+      "target": "C:\\Program Files (x86)\\MSI\\DropboxRedeemLauncher\\DropboxRedeemLauncher.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Dropbox Redeem Launcher.lnk"
+    },
+    {
+      "name": "Dukharo Driver",
+      "target": "C:\\Dukharo Driver$C:\\Dukharo Driver\\Dukharo Driver.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Dukharo Driver.lnk"
+    },
+    {
+      "name": "Everything",
+      "target": "D:\\Everything\\Everything.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Everything.lnk"
+    },
+    {
+      "name": "Excel",
+      "target": "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Excel.lnk"
+    },
+    {
+      "name": "GitLab",
+      "target": "C:\\Program Files\\Google\\Chrome\\Application\\chrome_proxy.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Chrome 应用\\GitLab.lnk"
+    },
+    {
+      "name": "Google Chrome",
+      "target": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Google Chrome.lnk"
+    },
+    {
+      "name": "IDLE (Python 3.14 64-bit)",
+      "target": "C:\\Users\\k9211\\AppData\\Local\\Programs\\Python\\Python314\\M\"C:\\Users\\k9211\\AppData\\Local\\Programs\\Python\\Python314\\Lib\\idlelib\\idle.pyw\"bC:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Installer\\{19AB4ED7-05CC-4497-9935-AF829093B5CE}\\idle.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Python 3.14\\IDLE (Python 3.14 64-bit).lnk"
+    },
+    {
+      "name": "Install Additional Tools for Node.js",
+      "target": "C:\\Windows\\System32\\cmd.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Node.js\\Install Additional Tools for Node.js.lnk"
+    },
+    {
+      "name": "Intel Driver & Support Assistant",
+      "target": "C:\\Program Files (x86)\\Intel\\Driver and Support Assistant\\x86\\DSAServiceHelper.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Intel Driver & Support Assistant.lnk"
+    },
+    {
+      "name": "Joyxoff",
+      "target": "C:\\Program Files (x86)\\Joyxoff\\Joyxoff.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Joyxoff\\Joyxoff.lnk"
+    },
+    {
+      "name": "Kiro",
+      "target": "D:\\Software\\Kiro\\Kiro.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Kiro\\Kiro.lnk"
+    },
+    {
+      "name": "Microsoft Edge",
+      "target": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application<C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Microsoft Edge.lnk"
+    },
+    {
+      "name": "Mod Organizer",
+      "target": "D:\\Software\\ModOrganizer.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Mod Organizer\\Mod Organizer.lnk"
+    },
+    {
+      "name": "MSI Afterburner",
+      "target": "D:\\Afterburner\\MSIAfterburner.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\MSI Afterburner\\MSI Afterburner.lnk"
+    },
+    {
+      "name": "MuMu多开器12",
+      "target": "D:\\MuMu Player 12\\shell\\MuMuMultiPlayer.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\MuMu模拟器12\\MuMu多开器12.lnk"
+    },
+    {
+      "name": "MuMu模拟器12",
+      "target": "D:\\MuMu Player 12\\shell\\MuMuPlayer.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\MuMu模拟器12\\MuMu模拟器12.lnk"
+    },
+    {
+      "name": "Node.js",
+      "target": "C:\\Program Files\\nodejs\\node.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Node.js\\Node.js.lnk"
+    },
+    {
+      "name": "Node.js command prompt",
+      "target": "C:\\Windows\\System32\\cmd.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Node.js\\Node.js command prompt.lnk"
+    },
+    {
+      "name": "Obsidian",
+      "target": "D:\\Software\\Obsidian\\Obsidian.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Obsidian.lnk"
+    },
+    {
+      "name": "Office 语言首选项",
+      "target": "C:\\Program Files\\Microsoft Office\\root\\Office16\\SETLANG.EXE",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Microsoft Office 工具\\Office 语言首选项.lnk"
+    },
+    {
+      "name": "Office 遥测日志",
+      "target": "C:\\Program Files\\Microsoft Office\\root\\Office16\\msoev.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Microsoft Office 工具\\Office 遥测日志.lnk"
+    },
+    {
+      "name": "OneDrive",
+      "target": "C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\OneDrive.lnk"
+    },
+    {
+      "name": "OneNote",
+      "target": "C:\\Program Files\\Microsoft Office\\root\\Office16\\ONENOTE.EXE",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\OneNote.lnk"
+    },
+    {
+      "name": "OpenIV",
+      "target": "C:\\Users\\k9211\\AppData\\Local\\New Technology Studio\\Apps\\OpenIV\\OpenIV.exe",
+      "source": "C:\\Users\\k9211\\Desktop\\OpenIV.lnk"
+    },
+    {
+      "name": "Outlook (classic)",
+      "target": "C:\\Program Files\\Microsoft Office\\root\\Office16\\OUTLOOK.EXE",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Outlook (classic).lnk"
+    },
+    {
+      "name": "PixPin",
+      "target": "D:\\Software\\PixPin\\PixPin.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\PixPin\\PixPin.lnk"
+    },
+    {
+      "name": "pot",
+      "target": "D:\\Program Files\\pot\\pot.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\pot\\pot.lnk"
+    },
+    {
+      "name": "PotPlayer 64 bit",
+      "target": "D:\\PotPlayer\\PotPlayerMini64.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\PotPlayer\\PotPlayer 64 bit.lnk"
+    },
+    {
+      "name": "PowerPoint",
+      "target": "C:\\Program Files\\Microsoft Office\\Root\\VFS\\Windows\\Installer\\{90160000-000F-0000-1000-0000000FF1CE}\\pptico.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\PowerPoint.lnk"
+    },
+    {
+      "name": "Publisher",
+      "target": "C:\\Program Files\\Microsoft Office\\root\\Office16\\MSPUB.EXE",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Publisher.lnk"
+    },
+    {
+      "name": "QQ",
+      "target": "C:\\Program Files (x86)\\Tencent\\QQNT*C:\\Program Files (x86)\\Tencent\\QQNT\\QQ.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\腾讯软件\\QQ\\QQ.lnk"
+    },
+    {
+      "name": "Rainy75",
+      "target": "C:\\Program Files (x86)\\Rainy75\\Rainy75.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Rainy75\\Rainy75.lnk"
+    },
+    {
+      "name": "Razer Synapse",
+      "target": "C:\\Program Files (x86)\\Razer\\Synapse3\\WPFUI\\Framework\\Razer Synapse 3 Host\\Razer Synapse 3.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Razer\\Razer Synapse.lnk"
+    },
+    {
+      "name": "RivaTuner Statistics Server",
+      "target": "D:\\RivaTuner Statistics Server\\RTSS.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\RivaTuner Statistics Server\\RivaTuner Statistics Server.lnk"
+    },
+    {
+      "name": "Shutter",
+      "target": "C:\\Users\\k9211\\Downloads\\shutter4.6\\shutter4.6\\shutter-4.6\\Shutter.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Shutter.lnk"
+    },
+    {
+      "name": "Spreadsheet Compare",
+      "target": "C:\\Program Files (x86)\\Microsoft Office\\Office16\\DCF\\SPREADSHEETCOMPARE.EXE\"pC:\\Program Files\\Microsoft Office\\Root\\VFS\\Windows\\Installer\\{90160000-000F-0000-1000-0000000FF1CE}\\sscicons.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Microsoft Office 工具\\Spreadsheet Compare.lnk"
+    },
+    {
+      "name": "Steam",
+      "target": "D:\\Steam\\steam.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Steam\\Steam.lnk"
+    },
+    {
+      "name": "Sticky Notes (new)",
+      "target": "C:\\Program Files\\Microsoft Office\\root\\Office16\\ONENOTE.EXE",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Sticky Notes (new).lnk"
+    },
+    {
+      "name": "Tailscale",
+      "target": "C:\\Program Files\\Tailscale\\tailscale-ipn.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Tailscale.lnk"
+    },
+    {
+      "name": "Telegram",
+      "target": "D:\\Software\\Telegram Desktop\\Telegram.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Telegram Desktop\\Telegram.lnk"
+    },
+    {
+      "name": "UU加速器",
+      "target": "D:\\Software\\Netease\\UU\\uu_launcher.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\UU加速器.lnk"
+    },
+    {
+      "name": "UU远程",
+      "target": "d:\\Program Files\\Netease\\GameViewer2d:\\Program Files\\Netease\\GameViewer\\GameViewer.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\UU远程.lnk"
+    },
+    {
+      "name": "Visual Studio Code",
+      "target": "C:\\Users\\k9211\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Visual Studio Code\\Visual Studio Code.lnk"
+    },
+    {
+      "name": "WeGame",
+      "target": "D:\\Program Files (x86)\\WeGame(D:\\Program Files (x86)\\WeGame\\wegame.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\腾讯游戏\\WeGame\\WeGame.lnk"
+    },
+    {
+      "name": "Windows PowerShell",
+      "target": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Windows PowerShell\\Windows PowerShell.lnk"
+    },
+    {
+      "name": "Windows PowerShell (x86)",
+      "target": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Windows PowerShell\\Windows PowerShell (x86).lnk"
+    },
+    {
+      "name": "Windsurf",
+      "target": "D:\\Software\\Windsurf\\Windsurf.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Windsurf\\Windsurf.lnk"
+    },
+    {
+      "name": "WindTerm.exe",
+      "target": "D:\\Program Files (x86)\\WindTerm_2.5.0\\WindTerm.exe",
+      "source": "C:\\Users\\k9211\\Desktop\\WindTerm.exe - 快捷方式 (2).lnk"
+    },
+    {
+      "name": "Word",
+      "target": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Word.lnk"
+    },
+    {
+      "name": "Wub_x64",
+      "target": "C:\\Users\\k9211\\Downloads\\Wub_v1.8\\Wub\\Wub_x64.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Wub_x64.lnk"
+    },
+    {
+      "name": "图吧工具箱",
+      "target": "D:\\\\202507\\2025.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\图吧工具箱.lnk"
+    },
+    {
+      "name": "外星仔加速器",
+      "target": "D:\\Program Files (x86)\\ETAlien Booster2D:\\Program Files (x86)\\ETAlien Booster\\etalien.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\外星仔加速器\\外星仔加速器.lnk"
+    },
+    {
+      "name": "夸克",
+      "target": "C:\\Program Files\\Quark\\quark.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\夸克.lnk"
+    },
+    {
+      "name": "奇游电竞加速器",
+      "target": "D:\\Software\\QiYou\\QiYou.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\奇游\\奇游电竞加速器.lnk"
+    },
+    {
+      "name": "抖音",
+      "target": "D:\\Program Files (x86)\\ByteDance\\douyin\\douyin.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\抖音.lnk"
+    },
+    {
+      "name": "爱思助手8.0(64位)",
+      "target": "D:\\Program Files\\i4Tools8\\i4Tools.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\爱思助手8.0\\x64\\爱思助手8.0(64位).lnk"
+    },
+    {
+      "name": "百度网盘",
+      "target": "D:\\Software\\BaiduNetdisk\\BaiduNetdisk.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\百度网盘\\百度网盘.lnk"
+    },
+    {
+      "name": "网易云音乐",
+      "target": "D:\\Program Files\\NetEase\\CloudMusic\\cloudmusic.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\网易云音乐.lnk"
+    },
+    {
+      "name": "腾讯手游助手-畅玩手机游戏",
+      "target": "D:\\Program Files\\Tencent\\GameAssist\\Application\\GameAssistLauncher.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\腾讯手游助手-畅玩手机游戏.lnk"
+    },
+    {
+      "name": "英雄联盟WeGame版",
+      "target": "D:\\WeGameApps\\\\WeGameLauncher\\launcher.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\腾讯游戏\\英雄联盟\\英雄联盟WeGame版.lnk"
+    },
+    {
+      "name": "超级抽奖",
+      "target": "E:\\抽奖\\超级抽奖 v23.2.1\\ExpertLottery2E:\\抽奖\\超级抽奖 v23.2.1\\ExpertLottery\\ExpertLottery.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\超级抽奖.lnk"
+    },
+    {
+      "name": "迅雷",
+      "target": "D:\\Software\\Thunder\\Program\\ThunderStart.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\迅雷软件\\迅雷\\迅雷.lnk"
+    },
+    {
+      "name": "迅雷游戏",
+      "target": "D:\\Software\\Thunder\\Program\\XLGame\\XLGame.exe",
+      "source": "C:\\Users\\k9211\\Desktop\\迅雷游戏.lnk"
+    },
+    {
+      "name": "酷狗音乐",
+      "target": "D:\\KGMusic\\KuGou.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\酷狗音乐.lnk"
+    },
+    {
+      "name": "金舟电脑录音软件",
+      "target": "D:\\Software\\JZSoundRecorder\\JZSoundRecorder.exe",
+      "source": "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\江下信息科技（惠州）有限公司\\金舟电脑录音软件\\金舟电脑录音软件.lnk"
+    },
+    {
+      "name": "雷神加速器",
+      "target": "D:\\Program Files (x86)\\LeiGod_Acc\\leigod_launcher.exe",
+      "source": "C:\\Users\\k9211\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\雷神加速器.lnk"
+    }
+  ]
+}
