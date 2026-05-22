@@ -269,6 +269,45 @@ def cmd_download_magnet(magnet: str) -> int:
         return 1
 
 
+def cmd_search_pan(query: str) -> int:
+    """搜索夸克网盘资源 — 打开搜索页面供 Hermes browser 工具提取"""
+    import asyncio
+    import subprocess
+    from src.crawlers.pan_search import search_quark_all
+
+    _toast(f"正在搜索夸克网盘「{query}」…")
+    print(f"[INFO] 搜索夸克网盘: {query}", flush=True)
+
+    # 先尝试 API 搜索
+    results = asyncio.run(search_quark_all(query, limit=8))
+
+    if results:
+        print(f"\n[OK] 找到 {len(results)} 个夸克网盘资源:\n")
+        for i, r in enumerate(results, 1):
+            print(f"  {i}. {r.summary()}")
+            print(f"     链接: {r.url}")
+        print()
+        best = results[0]
+        print(f"[BEST] {best.title}")
+        print(f"[BEST_URL] {best.url}")
+        if best.password:
+            print(f"[BEST_PWD] {best.password}")
+        return 0
+
+    # API 全部失败 → 打开浏览器搜索页面（Hermes 可以用 browser 工具提取）
+    from urllib.parse import quote_plus as qp
+    search_url = f"https://www.bing.com/search?q=site%3Apan.quark.cn+{qp(query)}"
+    print(f"[FALLBACK] API 搜索失败，打开浏览器搜索...")
+    print(f"[SEARCH_URL] {search_url}")
+    try:
+        subprocess.Popen(["cmd", "/c", "start", "chrome", search_url], shell=False)
+        print(f"[OK] 已打开 Bing 搜索夸克网盘资源，请从结果中选择")
+        return 0
+    except Exception as e:
+        print(f"[FAIL] 打开浏览器失败: {e}", file=sys.stderr)
+        return 1
+
+
 def cmd_news(topic: str) -> int:
     """抓取科技/金融资讯"""
     import asyncio
@@ -308,6 +347,7 @@ def print_help():
   python xz.py system <操作>            系统操作 (screenshot/lock/mute/volume-up...)
   python xz.py media <操作>             媒体控制 (play-pause/next/prev/stop)
   python xz.py search-torrent <关键词>   搜索磁力资源（美剧/电影）
+  python xz.py search-pan <关键词>      搜索夸克网盘资源
   python xz.py download <磁力链>         用迅雷下载磁力链接
   python xz.py news [话题]              抓取科技/金融资讯 (tech/36kr/hn)
   python xz.py run-turn <文字>          完整链路执行（含Hermes规划+自动学习）
@@ -374,6 +414,12 @@ def main():
             print("[ERROR] 请提供磁力链接", file=sys.stderr)
             return 1
         return cmd_download_magnet(rest)
+
+    elif cmd == "search-pan":
+        if not rest:
+            print("[ERROR] 请提供搜索关键词，例如: python xz.py search-pan 低智商犯罪", file=sys.stderr)
+            return 1
+        return cmd_search_pan(rest)
 
     elif cmd == "news":
         return cmd_news(rest or "all")
