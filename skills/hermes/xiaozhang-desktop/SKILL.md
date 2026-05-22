@@ -32,6 +32,7 @@ cd D:\11111begin\xiaozhang && .venv\Scripts\python.exe xz.py <命令> <参数>
 | 命令 | 用途 | 示例 |
 |---|---|---|
 | `search-torrent <关键词>` | 搜索磁力资源（自动过滤<1080p和死种） | `xz.py search-torrent "White Lotus S03"` |
+| `search-pan <关键词>` | 搜索夸克网盘资源 | `xz.py search-pan 低智商犯罪` |
 | `download <磁力链>` | 用迅雷打开磁力链接下载 | `xz.py download "magnet:?xt=urn:btih:..."` |
 | `news [话题]` | 抓取科技/金融资讯 | `xz.py news tech` |
 
@@ -41,6 +42,13 @@ cd D:\11111begin\xiaozhang && .venv\Scripts\python.exe xz.py <命令> <参数>
 3. **必须先向用户展示搜索结果，等用户确认后再调 download**
 4. 向用户展示时说清楚：片名、大小、做种数、来源
 5. 如果没找到结果，建议用户换关键词（如加年份、用英文原名）
+
+#### search-pan 使用规则
+1. 用中文名搜索效果最好
+2. 如果 API 搜索失败，会自动打开浏览器 Bing 搜索页面
+3. 输出 `[BEST_URL]` 是夸克网盘链接，用户可以直接在浏览器打开转存
+4. 如果有 `[BEST_PWD]` 说明需要提取码
+5. **国产剧优先用 search-pan，欧美剧优先用 search-torrent**
 
 #### download 使用规则
 1. 参数是完整的 magnet: 链接（从 search-torrent 的 [BEST_MAGNET] 获取）
