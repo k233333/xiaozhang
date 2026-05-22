@@ -17,9 +17,6 @@ data/memory.db*
 data/chroma/
 data/USER.md
 data/MEMORY.md
-models/wake_word/*.onnx
-models/wake_word/*.tflite
-
 # Whisper 模型缓存
 ~/.cache/huggingface/
 
@@ -46,7 +43,11 @@ Thumbs.db
 
 # v2.0 新增
 # 模型文件（大且非源码）
-models/wake_word/*.onnx
+models/wake_word/alexa_v0.1.onnx
+models/wake_word/hey_mycroft_v0.1.onnx
+models/wake_word/embedding_model.onnx
+models/wake_word/melspectrogram.onnx
+models/wake_word/silero_vad.onnx
 models/wake_word/*.tflite
 models/silero_vad.onnx
 models/sensevoice_small.onnx
