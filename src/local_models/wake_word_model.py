@@ -18,28 +18,20 @@ class WakeWordModel(LocalModel):
         self._oww: Any = None
 
     def _load(self) -> None:
-        from openwakeword.model import Model  # noqa: PLC0415
+        """加载自训练唤醒词模型（sklearn ONNX 分类器，不走 openWakeWord Model）"""
+        from src.audio.wake_word_custom import _load as custom_load, is_loaded  # noqa: PLC0415
 
-        custom_models: list[str] = []
-        if self.model_path.is_file():
-            custom_models = [str(self.model_path)]
-        elif self.model_path.is_dir():
-            custom_models = [
-                str(p) for p in self.model_path.glob("*.onnx")
-            ] + [str(p) for p in self.model_path.glob("*.tflite")]
+        if is_loaded():
+            self._oww = True  # 标记已加载
+            self._session = True
+            return
 
-        if not custom_models:
-            log.warning(
-                "未找到自训练唤醒词，使用 openWakeWord 默认（仅英文）",
-                model_dir=str(self.model_path),
-            )
-            self._oww = Model(inference_framework="onnx")
+        ok = custom_load()
+        if ok:
+            self._oww = True
+            self._session = True
         else:
-            self._oww = Model(
-                wakeword_models=custom_models,
-                inference_framework="onnx",
-            )
-        self._session = self._oww
+            raise RuntimeError("xiaozhang_wakeword.onnx 加载失败（检查模型和配置文件）")
 
     def predict(self, audio_int16) -> dict[str, float]:
         if not self._loaded or self._oww is None:
