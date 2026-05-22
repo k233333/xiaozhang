@@ -209,27 +209,43 @@ def cmd_media(action: str) -> int:
 
 
 def cmd_search_torrent(query: str) -> int:
-    """搜索磁力资源（美剧/电影/动漫）— 返回结构化结果"""
+    """搜索磁力资源（美剧/电影/动漫）— 自动过滤720p以下+死种"""
     import asyncio
-    from src.crawlers.torrent_search import search_all
+    from src.crawlers.torrent_search import search_all, check_torrent_health
 
     _toast(f"正在搜索资源「{query}」…")
-    print(f"[INFO] 搜索中: {query}", flush=True)
+    print(f"[INFO] 搜索中（自动过滤 <1080p 和死种）: {query}", flush=True)
 
-    results = asyncio.run(search_all(query, limit=5))
+    results = asyncio.run(search_all(query, limit=5, min_resolution=1080))
     if not results:
-        print(f"[FAIL] 未找到「{query}」的资源", file=sys.stderr)
+        print(f"[FAIL] 未找到「{query}」的 1080p+ 活跃资源", file=sys.stderr)
+        print("[HINT] 尝试用英文名搜索，或降低分辨率要求", file=sys.stderr)
         return 1
 
-    print(f"\n[OK] 找到 {len(results)} 个资源:\n")
+    print(f"\n[OK] 找到 {len(results)} 个 1080p+ 资源:\n")
     for i, r in enumerate(results, 1):
         print(f"  {i}. {r.summary()}")
-        print(f"     磁力链: {r.magnet[:80]}...")
-    print()
 
-    # 返回第一个结果的磁力链（供 Hermes 决定是否下载）
+    # 对最佳结果做健康检查
     best = results[0]
-    print(f"[BEST] {best.title}")
+    print(f"\n[CHECK] 正在验证最佳资源的种子健康度...", flush=True)
+    health = asyncio.run(check_torrent_health(best.magnet))
+    print(f"[HEALTH] {health['note']}")
+
+    if health.get("alive") is False:
+        # 最佳是死种，找下一个活的
+        print("[WARN] 最佳资源是死种，检查下一个...", flush=True)
+        for r in results[1:]:
+            h = asyncio.run(check_torrent_health(r.magnet))
+            if h.get("alive"):
+                best = r
+                health = h
+                print(f"[HEALTH] 替换为: {r.title[:60]} — {h['note']}")
+                break
+
+    print(f"\n[BEST] {best.title}")
+    print(f"[BEST_SIZE] {best.size}")
+    print(f"[BEST_SEEDS] {best.seeders} (API) / {health.get('seeders', '?')} (实时)")
     print(f"[BEST_MAGNET] {best.magnet}")
     return 0
 
