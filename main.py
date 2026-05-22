@@ -1328,10 +1328,21 @@ async def _run_daemon() -> None:
 
             )
 
-            # 执行完弹回复气泡（简短反馈，播放音频时跳过）
-            _reply_map = {True: "好的，已完成", False: "抱歉，执行失败了"}
-            if not getattr(result, '_audio_playing', False):
-                show_reply(_reply_map[result.success])
+            # 执行完弹回复气泡 + TTS 语音播报
+            # 优先用 plan.note（LLM 生成的自然语言回复），否则用默认
+            _default_reply = {True: "好的，已完成", False: "抱歉，执行失败了"}
+            reply_text = (result.note or "").strip() or _default_reply[result.success]
+
+            # 如果 plan 里有 say step 已经播报过了，就不重复
+            from src.audio.tts import is_playing  # noqa: PLC0415
+            if not is_playing():
+                show_reply(reply_text)
+                # TTS 语音播报回复
+                try:
+                    from src.audio.tts import speak  # noqa: PLC0415
+                    await speak(reply_text)
+                except Exception:
+                    pass  # TTS 失败不影响主流程
 
 
 

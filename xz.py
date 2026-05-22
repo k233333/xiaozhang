@@ -23,10 +23,15 @@ if sys.platform == "win32":
 
 
 def _toast(text: str) -> None:
-    """弹出右下角气泡（静默失败）"""
+    """弹出右下角气泡 + TTS 语音播报（静默失败）"""
     try:
         from src.ui.toast import show_reply
         show_reply(text)
+    except Exception:
+        pass
+    try:
+        from src.audio.tts import speak_sync
+        speak_sync(text)
     except Exception:
         pass
 
@@ -34,8 +39,8 @@ def _toast(text: str) -> None:
 def cmd_douyin_search(keyword: str) -> int:
     """抖音搜索并播放最新视频"""
     _toast(f"正在搜索「{keyword}」…")
-    from src.actions.douyin_actions import search_play_latest
-    ok = search_play_latest(keyword)
+    from src.actions.douyin_actions import search_and_play
+    ok = search_and_play(keyword)
     if ok:
         _toast(f"已播放「{keyword}」最新视频")
         print(f"[OK] 抖音已搜索'{keyword}'并播放最新视频")
@@ -158,19 +163,68 @@ def cmd_run_turn(text: str) -> int:
         return 1
 
 
+def cmd_bilibili_search(keyword: str) -> int:
+    """B站搜索并播放第一个视频"""
+    import subprocess
+    import time
+
+    _toast(f"正在搜索B站「{keyword}」…")
+    url = f"https://search.bilibili.com/all?keyword={keyword}"
+    try:
+        subprocess.Popen(["cmd", "/c", "start", "chrome", url], shell=False)
+        print(f"[OK] 已打开B站搜索: {keyword}")
+        _toast(f"已打开B站搜索「{keyword}」")
+        return 0
+    except Exception as e:
+        print(f"[FAIL] B站搜索失败: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_media(action: str) -> int:
+    """媒体控制（播放/暂停/上一曲/下一曲）"""
+    import ctypes
+    action = action.lower().strip()
+
+    key_map = {
+        "play-pause": 0xB3,
+        "播放暂停": 0xB3,
+        "next": 0xB0,
+        "下一曲": 0xB0,
+        "prev": 0xB1,
+        "上一曲": 0xB1,
+        "stop": 0xB2,
+        "停止": 0xB2,
+    }
+
+    vk = key_map.get(action)
+    if vk is None:
+        print(f"[UNKNOWN] 不支持的媒体操作: {action}", file=sys.stderr)
+        print("支持: play-pause/next/prev/stop")
+        return 1
+
+    ctypes.windll.user32.keybd_event(vk, 0, 0, 0)
+    ctypes.windll.user32.keybd_event(vk, 0, 2, 0)
+    print(f"[OK] 媒体操作: {action}")
+    return 0
+
+
 def print_help():
     print("""小张技能命令行 (xz.py)
 用法:
   python xz.py douyin-search <关键词>    搜索抖音并播放最新视频
+  python xz.py bilibili-search <关键词>  搜索B站并打开结果
   python xz.py open-app <应用名>         打开应用 (chrome/wechat/steam/vscode...)
   python xz.py system <操作>            系统操作 (screenshot/lock/mute/volume-up...)
+  python xz.py media <操作>             媒体控制 (play-pause/next/prev/stop)
   python xz.py run-turn <文字>          完整链路执行（含LLM规划+自动学习）
 
 示例:
   python xz.py douyin-search 不惑兄弟
+  python xz.py bilibili-search 原神攻略
   python xz.py open-app chrome
   python xz.py open-app 微信
   python xz.py system screenshot
+  python xz.py media play-pause
   python xz.py run-turn 打开计算器
 """)
 
@@ -190,6 +244,12 @@ def main():
             return 1
         return cmd_douyin_search(rest)
 
+    elif cmd == "bilibili-search":
+        if not rest:
+            print("[ERROR] 请提供搜索关键词，例如: python xz.py bilibili-search 原神攻略", file=sys.stderr)
+            return 1
+        return cmd_bilibili_search(rest)
+
     elif cmd == "open-app":
         if not rest:
             print("[ERROR] 请提供应用名，例如: python xz.py open-app chrome", file=sys.stderr)
@@ -201,6 +261,12 @@ def main():
             print("[ERROR] 请提供系统操作，例如: python xz.py system screenshot", file=sys.stderr)
             return 1
         return cmd_system(rest)
+
+    elif cmd == "media":
+        if not rest:
+            print("[ERROR] 请提供媒体操作，例如: python xz.py media play-pause", file=sys.stderr)
+            return 1
+        return cmd_media(rest)
 
     elif cmd == "run-turn":
         if not rest:

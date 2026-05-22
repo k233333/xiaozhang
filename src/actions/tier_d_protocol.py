@@ -262,13 +262,30 @@ async def _h_wait(step: Step) -> StepResult:
 
 async def _h_say(step: Step) -> StepResult:
 
-    """小张反馈一句话。当前是 stdout 输出，未接入 TTS。"""
+    """小张反馈一句话 — 气泡 + TTS 语音播报。"""
 
     text = step.text or step.description or ""
+
+    if not text.strip():
+        return StepResult(True)
 
     print(f"\n[小张] {text}")
 
     log.info("小张说", text=text)
+
+    # 弹气泡
+    try:
+        from src.ui.toast import show_reply  # noqa: PLC0415
+        show_reply(text)
+    except Exception:
+        pass
+
+    # TTS 语音播报
+    try:
+        from src.audio.tts import speak  # noqa: PLC0415
+        await speak(text)
+    except Exception as e:
+        log.debug("TTS 播报失败（不影响流程）", err=str(e))
 
     return StepResult(True)
 
