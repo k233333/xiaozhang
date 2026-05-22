@@ -208,6 +208,81 @@ def cmd_media(action: str) -> int:
     return 0
 
 
+def cmd_search_torrent(query: str) -> int:
+    """搜索磁力资源（美剧/电影/动漫）— 返回结构化结果"""
+    import asyncio
+    from src.crawlers.torrent_search import search_all
+
+    _toast(f"正在搜索资源「{query}」…")
+    print(f"[INFO] 搜索中: {query}", flush=True)
+
+    results = asyncio.run(search_all(query, limit=5))
+    if not results:
+        print(f"[FAIL] 未找到「{query}」的资源", file=sys.stderr)
+        return 1
+
+    print(f"\n[OK] 找到 {len(results)} 个资源:\n")
+    for i, r in enumerate(results, 1):
+        print(f"  {i}. {r.summary()}")
+        print(f"     磁力链: {r.magnet[:80]}...")
+    print()
+
+    # 返回第一个结果的磁力链（供 Hermes 决定是否下载）
+    best = results[0]
+    print(f"[BEST] {best.title}")
+    print(f"[BEST_MAGNET] {best.magnet}")
+    return 0
+
+
+def cmd_download_magnet(magnet: str) -> int:
+    """用迅雷打开磁力链接下载"""
+    import subprocess
+
+    if not magnet.startswith("magnet:"):
+        print(f"[ERROR] 无效磁力链: {magnet[:50]}", file=sys.stderr)
+        return 1
+
+    _toast("正在打开迅雷下载…")
+    try:
+        # 迅雷支持直接打开磁力链接
+        subprocess.Popen(["cmd", "/c", "start", "", magnet], shell=False)
+        print(f"[OK] 已发送到迅雷: {magnet[:60]}...")
+        return 0
+    except Exception as e:
+        print(f"[FAIL] 打开迅雷失败: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_news(topic: str) -> int:
+    """抓取科技/金融资讯"""
+    import asyncio
+    from src.crawlers.news_feed import fetch_all_news, fetch_hackernews, fetch_36kr
+
+    topic = topic.lower().strip()
+    _toast(f"正在抓取资讯…")
+
+    if topic in ("tech", "科技", "all", "全部", ""):
+        results = asyncio.run(fetch_all_news(limit=10))
+    elif topic in ("hn", "hackernews", "hacker"):
+        results = asyncio.run(fetch_hackernews(limit=10))
+    elif topic in ("36kr", "中文", "国内"):
+        results = asyncio.run(fetch_36kr(limit=10))
+    else:
+        results = asyncio.run(fetch_all_news(limit=10))
+
+    if not results:
+        print("[FAIL] 资讯抓取失败", file=sys.stderr)
+        return 1
+
+    print(f"\n[OK] 今日资讯 ({len(results)} 条):\n")
+    for i, item in enumerate(results, 1):
+        print(f"  {i}. {item.one_line()}")
+        if item.url:
+            print(f"     {item.url}")
+    print()
+    return 0
+
+
 def print_help():
     print("""小张技能命令行 (xz.py)
 用法:
@@ -216,16 +291,20 @@ def print_help():
   python xz.py open-app <应用名>         打开应用 (chrome/wechat/steam/vscode...)
   python xz.py system <操作>            系统操作 (screenshot/lock/mute/volume-up...)
   python xz.py media <操作>             媒体控制 (play-pause/next/prev/stop)
-  python xz.py run-turn <文字>          完整链路执行（含LLM规划+自动学习）
+  python xz.py search-torrent <关键词>   搜索磁力资源（美剧/电影）
+  python xz.py download <磁力链>         用迅雷下载磁力链接
+  python xz.py news [话题]              抓取科技/金融资讯 (tech/36kr/hn)
+  python xz.py run-turn <文字>          完整链路执行（含Hermes规划+自动学习）
 
 示例:
+  python xz.py search-torrent "White Lotus S03"
+  python xz.py search-torrent "白莲花度假村 第三季"
+  python xz.py download "magnet:?xt=urn:btih:..."
+  python xz.py news tech
+  python xz.py news 36kr
   python xz.py douyin-search 不惑兄弟
-  python xz.py bilibili-search 原神攻略
   python xz.py open-app chrome
-  python xz.py open-app 微信
   python xz.py system screenshot
-  python xz.py media play-pause
-  python xz.py run-turn 打开计算器
 """)
 
 
@@ -267,6 +346,21 @@ def main():
             print("[ERROR] 请提供媒体操作，例如: python xz.py media play-pause", file=sys.stderr)
             return 1
         return cmd_media(rest)
+
+    elif cmd == "search-torrent":
+        if not rest:
+            print("[ERROR] 请提供搜索关键词，例如: python xz.py search-torrent White Lotus S03", file=sys.stderr)
+            return 1
+        return cmd_search_torrent(rest)
+
+    elif cmd == "download":
+        if not rest:
+            print("[ERROR] 请提供磁力链接", file=sys.stderr)
+            return 1
+        return cmd_download_magnet(rest)
+
+    elif cmd == "news":
+        return cmd_news(rest or "all")
 
     elif cmd == "run-turn":
         if not rest:
