@@ -48,7 +48,9 @@ async def generate_skill(
         log.warning("skill_creator prompt 不存在，使用最小模板")
         md = _fallback_template(user_text, plan, outcome)
     else:
-        system = _PROMPT_PATH.read_text(encoding="utf-8")
+        from src.brain.prompt_builder import build_skill_creator_prompt  # noqa: PLC0415
+
+        system = build_skill_creator_prompt()
         payload = {
             "user_text": user_text,
             "intent": plan.intent,

@@ -89,6 +89,11 @@ def _read_soul() -> str:
 
 
 def _build_system(prompt_text: str | None) -> str:
+    """旧版构建（兼容 chat_simple 等非规划调用）。
+    
+    注意：规划任务现在走 prompt_builder.build_planning_prompt()，
+    此函数仅用于 simple_chat 等场景。
+    """
     soul = _read_soul()
     if prompt_text:
         return f"{soul}\n\n---\n\n{prompt_text}".strip()
@@ -283,35 +288,72 @@ router = LLMRouter()
 
 # 旧 API 兼容
 async def chat_simple(prompt_text: str, system: str = "") -> str:
+    from src.brain.prompt_builder import build_simple_chat_prompt  # noqa: PLC0415
+
+    sys = system if system else build_simple_chat_prompt()
     result = await router.complete(
-        "simple_chat", system=_build_system(system), user=prompt_text
+        "simple_chat", system=sys, user=prompt_text,
+        max_tokens=512,  # 简单对话不需要长输出
     )
     return result.text if result else ""
 
 
 async def plan(user_text: str, *, extra_context: str = "", complex: bool = False):
-    """旧 plan() API 的兼容层；返回 Plan 对象（成功）或 None
+    """规划入口 — 动态 prompt 构建 + 前缀缓存优化
+
+    Token 优化策略：
+      - simple 任务：仅加载 core prompt (~800 tokens vs 旧版 ~2500)
+      - complex 任务：core + examples (~1500 tokens)
+      - full（escalate）：完整 prompt（保持质量）
+      - 静态内容在前（命中 DeepSeek 前缀缓存，1/10 价格）
+      - 动态内容在后（extra_context、时间等）
 
     complex=True 直接走 task_planning_complex 路由（v4-pro），用于 escalate。
     """
     from src.brain.action_schema import Plan  # noqa: PLC0415
+    from src.brain.intent_classifier import Complexity, classify  # noqa: PLC0415
+    from src.brain.prompt_builder import build_planning_prompt  # noqa: PLC0415
 
-    sys_prompt = _read_prompt("planner.md")
+    # 根据 complex 标志 + 本地分类器选择 prompt 级别
+    if complex:
+        complexity = "full"
+        task_type = "task_planning_complex"
+    else:
+        # 用本地规则分类器（0ms）决定 prompt 精简程度
+        local_complexity = classify(user_text)
+        if local_complexity == Complexity.COMPLEX:
+            complexity = "complex"
+        else:
+            complexity = "simple"
+        task_type = "task_planning"
+
+    sys_prompt = build_planning_prompt(
+        complexity=complexity,
+        extra_context=extra_context,
+    )
+
+    # user message 保持简洁（动态内容已在 system prompt 末尾）
     user_msg = user_text
-    if extra_context:
-        user_msg = f"{user_text}\n\n[已知上下文]\n{extra_context}"
-
-    task_type = "task_planning_complex" if complex else "task_planning"
 
     raw = await router.complete_json(
         task_type,
-        system=_build_system(sys_prompt),
+        system=sys_prompt,
         user=user_msg,
+        max_tokens=1024,  # 规划输出不需要 2048，紧凑 JSON 通常 < 500 tokens
     )
     if raw is None:
         return None
+
+    # 如果 LLM 自标 needs_complex_reasoning 且当前不是 complex，escalate 重规划
+    plan_obj = None
     try:
-        return Plan.from_dict(raw)
+        plan_obj = Plan.from_dict(raw)
     except Exception as e:  # noqa: BLE001
         log.error("Plan schema 校验失败", err=str(e), raw=str(raw)[:300])
         return None
+
+    if plan_obj.needs_complex_reasoning and not complex:
+        log.info("LLM 自标需要 escalate，用 v4-pro 重规划", intent=plan_obj.intent)
+        return await plan(user_text, extra_context=extra_context, complex=True)
+
+    return plan_obj

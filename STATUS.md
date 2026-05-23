@@ -1,455 +1,268 @@
-# 小张项目状态总结（2026-05-20）
-
-
+# 小张项目状态总结（2026-05-23 更新）
 
 > 本文件供下一个对话窗口的 AI 快速理解项目全貌。每次重大进展后更新。
 
-
-
 ## 一句话概述
 
+Windows 桌面语音助手"小张"，v3.0 架构重构完成。小张进程只负责音频层（唤醒词+录音+ASR+TTS+气泡）+ 资源管理，**Hermes 作为大脑**处理所有 LLM 调用和复杂决策。本地 skill 快速路径（0.3s）+ Hermes 慢速路径（4-8s）混合模式，成功执行后自动学成 skill 下次直接命中。
 
+## 架构（v3.0 — Hermes 作为大脑）
 
-Windows 桌面语音助手"小张"，v2.0 骨架已完工，核心链路（语音→转写→规划→执行→自学习）已跑通验证。修复了 skill 匹配器的向量阈值 bug（之前任意输入都匹配 cancel），唤醒词循环已加入调试日志，待用户实测验证。
+```
+小张进程（纯音频层，常驻后台）：
+  麦克风 → 唤醒词"小张" → 录音 → ASR → 文字
+  → 本地 skill 匹配（命中 → 0.3s 直接执行）
+  → 未命中 → Hermes AIAgent.chat()（进程内调用）
+  → 返回回复 → TTS 播报 + 气泡
+  + 游戏检测 watchdog → 自动卸载/加载音频模型
 
-
+Hermes（大脑，进程内 Python 库调用）：
+  接收文字 → skill 匹配 / LLM 规划 → 调 xz.py 执行
+  DeepSeek-Chat API（主力）
+  成功后 → 小张自动生成 SKILL.md → 下次本地命中
+```
 
 ## 项目位置
 
-
-
+```
+D:\11111begin\xiaozhang\          # 小张主项目
+D:\11111begin\hermes-agent\       # Hermes Agent（独立安装）
+C:\Users\k9211\.hermes\skills\    # Hermes 的 skill 目录（含小张的 SKILL.md）
 ```
 
-D:\11111begin\xiaozhang\
+## GitHub 仓库
 
-```
-
-
+https://github.com/k233333/xiaozhang （公开）
 
 ## 技术栈
 
-
-
 - Python 3.11 + uv 包管理
+- LLM：**全部由 Hermes 调用**，小张不再直接调 LLM API
+  - DeepSeek-Chat（主力，¥1/M tokens）
+  - Groq Llama-70B（fallback，免费但 TPM 限制 12K）
+  - Gemini 2.5 Flash（Vision，免费额度）
+- ASR：faster-whisper small CPU（1.6s 延迟）
+- TTS：edge-tts 晓晓声音（异步非阻塞，自动缓存）
+- 本地模型：DirectML GPU（7900 XTX 24GB）
+- 桌面自动化：pyautogui + pywinauto
+- 记忆：SQLite + FTS5 + ChromaDB
+- 爬虫：httpx + Playwright（browser fallback）
 
-- LLM：DeepSeek-Chat（主力 0.8s）+ DeepSeek-Reasoner（复杂任务 28s）+ Groq Llama-70B（fallback）+ Gemini 2.5 Flash（Vision）
+## 关键文件
 
-- ASR：faster-whisper small CPU（当前主力，1.6s 延迟）；SenseVoice 894MB ONNX 已下载到 GPU 但推理管线未对接
+| 文件 | 用途 |
+|---|---|
+| `main.py` | CLI 入口 + 守护进程 |
+| `xz.py` | Hermes↔小张 CLI 桥接（所有桌面操作的入口） |
+| `src/runtime.py` | 混合模式路由（本地 skill → Hermes fallback → 自学习） |
+| `src/audio/tts.py` | TTS 语音合成（edge-tts） |
+| `src/audio/wake_word_custom.py` | 自训练唤醒词检测（sklearn ONNX） |
+| `src/crawlers/torrent_search.py` | 磁力资源搜索（PirateBay API） |
+| `src/crawlers/pan_search.py` | 夸克网盘搜索（多源聚合） |
+| `src/crawlers/news_feed.py` | 科技/金融资讯抓取 |
+| `src/core/resource_manager.py` | 游戏感知 + 模型加载/卸载 |
+| `src/local_models/wake_word_model.py` | 唤醒词模型加载（修复：用 wake_word_custom 而非 openWakeWord） |
+| `startup.ps1` | 开机自启动脚本 |
+| `scripts/preload_models.py` | 模型预加载到 GPU |
+| `skills/hermes/xiaozhang-desktop/SKILL.md` | 教 Hermes 怎么用 xz.py |
+| `skills/hermes/caveman/SKILL.md` | 省 token 的回复风格 |
 
-- 本地模型：全部走 DirectML（7900 XTX 24GB 显存）
+## xz.py 可用命令
 
-- 桌面自动化：pyautogui + pywinauto + Playwright（已装）
+```
+douyin-search <关键词>     抖音客户端搜索播放
+bilibili-search <关键词>   B站搜索（Chrome打开）
+open-app <应用名>          打开应用（模糊匹配）
+system <操作>             screenshot/lock/mute/volume-up/volume-down/show-desktop
+media <操作>              play-pause/next/prev/stop
+search-torrent <关键词>    磁力资源搜索（自动过滤<1080p+死种）
+search-pan <关键词>        夸克网盘搜索
+download <磁力链>          迅雷下载
+news [话题]               科技/金融资讯（tech/36kr/hn）
+run-turn <文字>           完整链路（本地skill→Hermes）
+```
 
-- 记忆：SQLite + FTS5 + ChromaDB 向量召回
+## 开机自启动
 
-- 配置：config/runtime.yaml + config/llm.yaml + config/soul.md
+- Windows 计划任务：`XiaoZhang-Hermes-Startup`
+- 触发：登录后延迟 2 分钟
+- 执行：`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File startup.ps1`
+- 工作目录：`D:\11111begin\xiaozhang`
+- 耗时：4 秒（模型预加载 2.4s + 启动进程）
+- 日志：`logs/startup_*.log`
 
+### 之前启动失败的原因（已修复）
+- ExecutionTimeLimit 5分钟超时 → 改为无限制
+- PowerShell 5.1 不认 UTF-8 中文 → 改为全英文日志
+- `main.py daemon` 子命令不存在 → 改为 `main.py start`
+- powershell.exe 没用完整路径 → 改为 `C:\Windows\System32\...`
+- 模型加载用 here-string 内嵌 Python → 改为独立 `scripts/preload_models.py`
 
+## Hermes 配置
 
-## 已完成 ✅
+### 已启用的 toolsets（精简后，省 60% tokens）
+- terminal（核心，调 xz.py）
+- file（文件操作）
+- skills（skill 匹配）
+- memory（记忆）
 
+### 已禁用的 toolsets
+web, browser, code_execution, vision, image_gen, tts, todo, session_search, clarify, delegation, cronjob, messaging, computer_use
 
+### Token 优化
+- 精简 toolsets：system prompt 从 ~20K 降到 ~5-8K tokens
+- Caveman skill：输出 tokens 省 65-75%
+- 本地 skill 快速路径：命中时 0 token 消耗
+- 优化后一次对话 ~6.5K tokens ≈ ¥0.007
 
-| 模块 | 状态 | 关键文件 |
+### API 状态（2026-05-23）
+- DeepSeek：**余额不足（402）**，需要充值 https://platform.deepseek.com/top_up
+- Groq：可用但 TPM 限制 12K（Hermes prompt 太大）
+- Gemini：免费额度用完（429）
 
+### Hermes 使用统计
+- 38 个 session，729 条消息
+- 全部是用户自己使用，未被盗用
+
+## 游戏感知资源管理
+
+| 模式 | 加载的模型 | 显存 |
 |---|---|---|
+| Standard | wake_word + silero_vad + sensevoice + omniparser | ~2GB |
+| Gaming | 仅 wake_word（26KB） | 0 |
 
-| LLMRouter 多 provider 三档路由 | ✅ 实测通过 | src/brain/llm_router.py |
+- 切换触发：进程白名单 / 全屏检测 / GPU>50% / CPU>70%
+- 切换延迟：3 秒抖动抑制
+- 自学习：未知游戏自动加入白名单
 
-| 意图分类器（纯规则 0ms） | ✅ | src/brain/intent_classifier.py |
+## 本地 Skill 系统
 
-| 三级降级执行 D/C/A | ✅ | src/actions/executor.py |
+- 50 个 skill（42 builtin + 6 generated + 2 hermes）
+- 匹配方式：字面包含 → difflib 模糊 → ChromaDB 向量
+- 阈值：字面覆盖率 ≥ 0.7，模糊 ≥ 0.85，向量距离 < 0.35
+- 自学习：Hermes 成功执行后自动生成 SKILL.md
 
-| 42 个 builtin skill | ✅ | skills/_builtin/ |
+## 唤醒词
 
-| Skill 自动生成 + 进化 | ✅ 实测"打开记事本"自动学成 skill | src/skills/ + src/learning/ |
+- 模型：`models/wake_word/xiaozhang_wakeword.onnx`（26KB，sklearn 分类器）
+- 准确率：99.8%，阈值 0.7
+- 特征：80 维 mel（40 bins × mean+std）
+- **注意**：不能用 openWakeWord 的 `Model()` 加载（输出 shape 不兼容），必须用 `wake_word_custom.py` 直接 onnxruntime 推理
+- 训练数据：493 个 wav 文件（已在 GitHub）
 
-| 三层 Memory（SQLite+FTS5+ChromaDB） | ✅ | src/memory/ |
+## 爬虫功能
 
-| 游戏感知 + 资源管理 | ✅ | src/core/game_detector.py + resource_manager.py |
+### 磁力搜索（search-torrent）
+- 源：PirateBay API（apibay.org，最稳定）+ 1337x（备用，经常 403）
+- 自动过滤：<1080p 排除，0 seeders 排除
+- 健康检查：UDP tracker scrape（代理环境下可能不工作）
 
-| CPU 高负载守护 | ✅ | src/core/cpu_guard.py |
+### 夸克网盘搜索（search-pan）
+- 源：quarksoo + miaosou + haisou + Bing site:搜索
+- 现状：API 源不太稳定（403/SSL 失败），Bing 兜底打开浏览器
+- 后续：Hermes 可以用 browser 工具从搜索结果页提取链接
 
-| 冷启动优化（1.9s 响应 + 60s 延迟加载） | ✅ | resource_manager.py |
+### 资讯（news）
+- HackerNews（JSON API，最稳定）
+- 36kr（热榜 API）
 
-| DirectML GPU 加速 | ✅ 4 个模型全上 GPU | src/local_models/ |
-
-| Vision（Gemini 2.5 Flash） | ✅ 实测能看屏幕 | src/vision/vision_query.py |
-
-| 系统托盘 | ✅ | src/tray/ |
-
-| CLI 子命令分组 | ✅ | main.py（status/mode/audio/memory/skills/vision/models）|
-
-| 107 个 pytest 测试 | ✅ | tests/ |
-
-| README 用户手册 | ✅ | README.md |
-
-| bench_llm 基准脚本 | ✅ | bench_llm.py |
-
-| 开机自启动脚本 | ✅ | scripts/ |
-
-| 本机软件路径映射 | ✅ | config/apps.yaml |
-
-| 语音录音 + 转写 | ✅ 实测"小张小张"转写正确 | src/audio/recorder.py + stt.py |
-
-| 声音反馈（叮/嘟） | ✅ winsound | recorder.py |
-
-| 抖音客户端搜索播放 | ✅ pyautogui 确定性操作 | src/actions/douyin_actions.py |
-
-| Workflow 录制回放 | ✅ | src/learning/workflow_replay.py |
-
-
-
-## 未完成 / 有问题 ❌
-
-
-
-| 问题 | 现状 | 下一步建议 |
-
-|---|---|---|
-
-| **唤醒词"小张"** | 自训练 ONNX 分类器 99.8% 准确率，已接入主循环。加入调试日志（静音块统计/能量触发/分类器结果） | 需要实测验证（你说"小张"看能不能触发）。如无声，先看日志里 RMS 值，确认麦克风音频确实进来了 |
-
-| **VAD 误触发 / skill 匹配错误** | 已解决 — 唤醒词启用后只有"小张"命中才开始录音。修复 matcher.py 向量距离阈值 `< 1.0` → `< 0.35`（之前任意输入都匹配 cancel skill）| — |
-
-| **SenseVoice 推理管线** | 894MB ONNX 已下载到 GPU，但 sherpa-onnx 版的输入格式（mel+tokenizer）没对接 | 需要研究 sherpa-onnx 的 SenseVoice 推理 API，或等 funasr 装好 torch |
-
-| **OmniParser 真实推理** | HuggingFace 上是 safetensors 不是 ONNX，icon_detect 404 | 需要从 PyTorch 转 ONNX，或等微软发布官方 ONNX |
-
-| **Vision 坐标不准** | Gemini 在 4K 屏上返回的坐标偏移，点不到目标 | 已改用 pyautogui 确定性坐标；Vision 仅作最后兜底 |
-
-| **recorder.py 旧版残留** | 硬盘上的文件多次重写但有些旧引用可能残留 | 已修了 silence_timeout_ms 和 vad_aggressiveness，基本可用 |
-
-
-
-## 关键实测数据
-
-
-
-| 场景 | 耗时 | 备注 |
-
-|---|---|---|
-
-| builtin skill 命中（如"打开抖音"） | 0.3s | 0 LLM 调用 |
-
-| 简单任务 LLM 规划（如"打开记事本"） | 3-4s | DeepSeek-Chat |
-
-| 复杂任务 LLM 规划 | 28-32s | DeepSeek-Reasoner（自动 escalate）|
-
-| 语音转写 | 1.6s | faster-whisper small CPU |
-
-| 抖音搜索播放完整链路 | ~12s | pyautogui 确定性操作 |
-
-| 冷启动到可响应 | 1.9s | 轻量模型先加载 |
-
-
-
-## API Keys（在 .env 文件中）
-
-
-
-- `DEEPSEEK_API_KEY` — 主力 LLM（Chat + Reasoner）
-
-- `GROQ_API_KEY` — Groq Llama-70B fallback
-
-- `GEMINI_API_KEY` — Gemini 2.5 Flash（Vision）
-
-
-
-## Git 历史（16 个 commit）
-
-
+## Git 代理配置
 
 ```
-
-0c0a5b1 feat: 语音链路跑通 — 持续监听 + 叮/嘟声音反馈 + faster-whisper 转写
-
-ebdd375 feat: 抖音搜索播放完整链路验证通过 + apps.yaml 软件映射
-
-b79c0d1 wip: 抖音客户端搜索播放链路调试中
-
-fc5e0c1 feat: 扫描本机软件 + apps.yaml 路径映射 + 抖音改走客户端
-
-e4d0858 fix: 多步规划+Vision点击完整链路跑通 + 修3个bug
-
-7d80a7a feat: 修 stt.py + 开机自启动脚本 + ChromaDB 向量召回
-
-7e416ac perf: 冷启动优化 — 立即加载轻量模型，60s 后延迟加载重模型
-
-d567899 fix: 所有本地模型配置改为 directml 优先 + wake_word 模型下载就位
-
-bcc159c feat: 12 个新 builtin skill + workflow 录制回放 + SenseVoice 修复尝试
-
-81716eb feat: M+N — DirectML GPU 加速 + 轻量意图分类器
-
-22ef59e feat: H 选项 + 三档智能路由（task_planning + complex escalate）
-
-de58ea3 docs: session_log 追加 Session 4 完整记录
-
-f238b88 feat: 21 个新 builtin skill + pytest 测试套件 99 项 + README 用户手册
-
-5f3baef refactor: CLI 重组为 sub-CLI 组（audio/memory/skills）
-
-ebfa2b7 perf: task_planning 切到 deepseek-chat（14s -> 6s -> 1.6s 命中）
-
-249df0e feat: 首次端到端验证通过 + LLM 自学习产出第一个 skill
-
-52750f0 v2.0: 小张桌面语音助手完整骨架
-
+git config --global http.proxy "http://127.0.0.1:7897"
+git config --global https.proxy "http://127.0.0.1:7897"
+git config --global http.sslVerify false
 ```
 
-
-
-## 目录结构（关键文件）
-
-
-
+push 时如果卡住，用 token 方式：
+```powershell
+$token = (gh auth token); git remote set-url origin "https://${token}@github.com/k233333/xiaozhang.git"; git push; git remote set-url origin "https://github.com/k233333/xiaozhang.git"
 ```
-
-xiaozhang/
-
-├── main.py                     CLI 入口（start/console/speak/status/mode/audio/memory/skills/vision/models）
-
-├── dev_console.py              键盘 REPL
-
-├── bench_llm.py                LLM 速度基准测试
-
-├── config/
-
-│   ├── runtime.yaml            运行时配置（音频/VAD/资源管理/游戏白名单/本地模型）
-
-│   ├── llm.yaml                LLM provider + 路由（DeepSeek/Groq/Gemini）
-
-│   ├── apps.yaml               本机软件路径映射（25+ 软件）
-
-│   └── soul.md                 小张人设
-
-├── src/
-
-│   ├── audio/recorder.py       麦克风录音 + VAD + 声音反馈
-
-│   ├── audio/stt.py            ASR（SenseVoice 优先 → faster-whisper fallback）
-
-│   ├── audio/vad.py            VAD 抽象层（Silero 优先 → webrtcvad）
-
-│   ├── audio/wake_word.py      唤醒词检测（待完善）
-
-│   ├── brain/llm_router.py     多 provider 路由器（核心）
-
-│   ├── brain/intent_classifier.py  轻量意图分类器（0ms 纯规则）
-
-│   ├── brain/action_schema.py  Plan/Step pydantic 模型
-
-│   ├── brain/prompts/          planner.md / skill_creator.md / intent_router.md
-
-│   ├── core/config.py          双 YAML 配置加载
-
-│   ├── core/state_machine.py   IDLE→ARMED→LISTENING→EXECUTING
-
-│   ├── core/resource_manager.py 游戏感知 + 模型加载/卸载 + 延迟加载
-
-│   ├── core/game_detector.py   4 种检测 + 自学习白名单
-
-│   ├── core/cpu_guard.py       CPU 高负载守护协程
-
-│   ├── actions/executor.py     三级降级调度
-
-│   ├── actions/tier_d_protocol.py  D 级（URI/快捷键/cmd）
-
-│   ├── actions/tier_c_uia.py   C 级（pywinauto/Playwright）
-
-│   ├── actions/tier_a_vision.py A 级（OmniParser → Vision LLM）
-
-│   ├── actions/douyin_actions.py 抖音专用操作
-
-│   ├── skills/loader.py + matcher.py + generator.py + parser.py
-
-│   ├── memory/store.py + recall.py + vector.py + user_profile.py
-
-│   ├── learning/skill_stats.py + workflow_recorder.py + workflow_replay.py + evolution.py
-
-│   ├── local_models/base.py + wake_word_model.py + vad_model.py + sensevoice_model.py + omniparser_model.py
-
-│   ├── vision/screenshot.py + omniparser.py + vision_query.py
-
-│   └── tray/tray_icon.py
-
-├── skills/_builtin/            42 个内置 skill
-
-├── skills/_generated/          LLM 自动学到的 skill
-
-├── models/
-
-│   ├── wake_word/              openWakeWord 模型 + 训练数据
-
-│   ├── silero_vad.onnx         2.2MB
-
-│   └── sensevoice_small.onnx   894MB
-
-├── data/                       memory.db / chroma/ / USER.md
-
-├── scripts/                    install_autostart.bat 等
-
-├── tests/                      107 个 pytest
-
-├── .env                        API keys（不进 git）
-
-├── .kiro/steering/project-plan.md  v2.0 方案（Kiro 自动加载）
-
-├── knowledge-dev.json          开发期状态
-
-├── knowledge-runtime.json      运行期状态
-
-└── session_log.md              开发会话日志
-
-```
-
-
-
-## 下一步优先级
-
-
-
-1. **唤醒词实测验证** — ONNX 分类器已接入但从未成功触发过，需要 RMS 日志确认麦克风通路正常
-
-2. **SenseVoice 推理对接** — 让 ASR 从 1.6s 降到 <0.5s（GPU 加速）
-
-3. **更多应用的确定性操作** — 像抖音一样，为微信/QQ/B站 写专用 action
-
-4. **声纹校验**（可选）— 防止别人触发你的小张
-
-
 
 ## 常用命令
 
-
-
 ```cmd
-
 cd D:\11111begin\xiaozhang
 
-uv run python main.py status          # 看资源/模型/模式
+# 小张
+.venv\Scripts\python.exe main.py status
+.venv\Scripts\python.exe main.py speak "打开抖音"
+.venv\Scripts\python.exe xz.py search-torrent "White Lotus S03"
+.venv\Scripts\python.exe xz.py search-pan 低智商犯罪
+.venv\Scripts\python.exe xz.py news tech
 
-uv run python main.py skills list     # 看所有 skill
+# Hermes
+D:\11111begin\hermes-agent\venv\Scripts\hermes.exe chat -q "hello"
+D:\11111begin\hermes-agent\venv\Scripts\hermes.exe tools list
+D:\11111begin\hermes-agent\venv\Scripts\hermes.exe sessions stats
 
-uv run python main.py speak "打开抖音" # 文字测试
+# 测试
+.venv\Scripts\python.exe -m pytest tests/ -q
 
-uv run python main.py audio list      # 看麦克风
-
-uv run python main.py memory recent   # 看历史
-
-uv run pytest tests/ -q               # 跑测试（107 项 5 秒）
-
-git log --oneline                     # 看 git 历史
-
+# Git（需要代理）
+C:\Users\k9211\scoop\shims\git.exe push
+C:\Users\k9211\scoop\shims\gh.exe auth status
 ```
 
+## 注意事项（给下一个 AI 看）
 
+1. **uv/git/gh 不在 PATH 里** — 用完整路径 `C:\Users\k9211\scoop\shims\*.exe`
+2. **PowerShell 5.1 不认 UTF-8** — 脚本里不要写中文，用英文
+3. **代理端口 7897** — 系统代理 `127.0.0.1:7897`，git/gh 需要设环境变量
+4. **Hermes 不直接调 LLM** — 小张进程通过 `from run_agent import AIAgent` 进程内调用
+5. **wake_word 不能用 openWakeWord Model()** — 必须用 `wake_word_custom.py`
+6. **DeepSeek 余额** — 当前欠费，需要充值才能用 Hermes
+7. **skill 目录分离** — `skills/_builtin/` 和 `skills/_generated/` 是小张本地用的，`skills/hermes/` 是给 Hermes 看的（需要同步到 `~/.hermes/skills/`）
+8. **测试 107 项全过** — 改完代码跑 `pytest tests/ -q` 确认
 
-## 2026-05-19 会话进展
+## 2026-05-23 会话进展
 
+### TTS 语音回复
+- 新增 `src/audio/tts.py`：edge-tts 晓晓声音，异步非阻塞，mp3 缓存
+- `_h_say` 动作：气泡 + TTS 播报
+- main.py 回复：优先用 plan.note，否则默认文字
 
+### 架构重构：Hermes 作为大脑
+- `runtime.py` 重写：删除所有直接 LLM 调用
+- 混合模式：本地 skill 0.3s → Hermes fallback 4-8s → 自学习闭环
+- Hermes 作为 Python 库进程内调用（`from run_agent import AIAgent`）
 
-- **修复 skill 匹配器 bug**：`matcher.py` 向量距离阈值从 `< 1.0` 改为 `< 0.35`，之前的阈值导致任意输入都被 ChromaDB 匹配到最近的向量（cancel skill），用户说"打开网页"也被执行"取消"
+### 开机自启动修复
+- 计划任务 ExecutionTimeLimit 改为无限制
+- startup.ps1 全英文重写（避免 PowerShell 5.1 编码问题）
+- `main.py daemon` → `main.py start`
+- 独立 `scripts/preload_models.py`
+- 模型预加载 2.4s 全部 GPU
 
-- **加入唤醒词调试日志**：`wake_word_loop.py` 新增静音块统计（每 30 块输出 RMS）、能量触发日志、分类器概率日志，方便诊断"为什么没反应"
+### wake_word 模型修复
+- 根因：xiaozhang_wakeword.onnx 是 sklearn 分类器（1D 输出），不兼容 openWakeWord Model()
+- 修复：`wake_word_model.py._load()` 改为调用 `wake_word_custom._load()`
+- 验证：Standard 模式 4 个模型全部加载成功，Gaming 模式只保留 wake_word
 
-- **守护进程已重启**：matcher fix 已生效，文字测试"打开网页"正确路由到 LLM 规划
+### 爬虫 skill
+- `src/crawlers/torrent_search.py`：PirateBay API + 1337x，自动过滤 <1080p + 死种
+- `src/crawlers/pan_search.py`：夸克网盘多源聚合 + Bing 兜底
+- `src/crawlers/news_feed.py`：HackerNews + 36kr
+- xz.py 新增：search-torrent / search-pan / download / news
 
-- **待验证**：用户对着麦克风说"小张"能否触发唤醒词（RMS 日志会显示声音是否到达）
+### Token 优化
+- 禁用 13 个不用的 Hermes toolsets（20K→5-8K tokens/call）
+- 安装 Caveman skill（输出省 65-75%）
+- 综合省 ~70%
 
+### GitHub 推送
+- 仓库：https://github.com/k233333/xiaozhang
+- gh CLI 安装 + 认证（device flow）
+- git 代理配置（http.proxy + sslVerify=false + token push）
 
-
-## 2026-05-20 会话进展
-
-
-
-- **Hermes Agent 部署**：NousResearch/hermes-agent v0.14.0 克隆到 `D:\11111begin\hermes-agent\`，venv + 依赖安装完成，DeepSeek API Key 已配置，89 个 skills 同步，模型设为 `deepseek/deepseek-chat`。`hermes` 命令可用（`~/.local/bin/hermes.exe`）
-
-- **项目引导文件**：创建 `PROJECT_BRIEF.md` 供 Hermes 接手小张项目时快速理解全貌
-
-- **提交更改**：matcher 阈值修复 + 唤醒词调试日志 + 两个自动生成的 skill 已提交（085b322）
-
-
-
-1. 项目的 steering 文件在 `.kiro/steering/project-plan.md`，Kiro 会自动加载
-
-2. 所有架构决策在 `PLAN.md`
-
-3. 开发进度在 `knowledge-dev.json` 和 `session_log.md`
-
-4. **不要重复造轮子** — 先看已有代码再改
-
-5. **fs_write 有时不落盘** — 写完后用 `cmd /c dir <path>` 验证文件真在硬盘上
-
-6. **Windows GBK 编码问题** — Python 输出要 `sys.stdout.reconfigure(encoding="utf-8")`
-
-7. **pyautogui 比 Vision 更可靠** — 对于已知 UI 布局的应用，用相对坐标操作
-
-8. **测试前先删 `__pycache__`** — 避免旧 .pyc 缓存导致假通过
-
-
-
-## 2026-05-21 会话进展
-
-### Hermes 集成 + 稳定性修复
-- **Hermes API 修复**：`config.yaml` 从 OpenRouter 格式 `deepseek/deepseek-chat` 改为直连 `deepseek-chat` + `provider: deepseek`，解决 404 超时问题。`.env` 增加 `DEEPSEEK_BASE_URL=https://api.deepseek.com/v1` 防复发
-- **Git Bash 环境**：设 User 环境变量 `HERMES_GIT_BASH_PATH` 解决 Hermes terminal 工具找不到 bash
-- **Hermes dispatch 模块**：`src/hermes_dispatch.py` 异步调 Hermes CLI oneshot 模式
-- **HermesCfg**：`src/core/config.py` 新增 pydantic model，`config/runtime.yaml` 加 hermes 配置段
-- **SOUL.md**：强制 Hermes 用 terminal 工具调 `xz.py`，禁止 browser/web_search 操作本地应用
-
-### 抖音搜索播放（端到端跑通）
-- **douyin_actions.py**：`search_play_latest()` — 开抖音→搜索→点"最新"→播放第一个视频
-- **tier_d_protocol.py**：注册 `douyin_search_play` handler
-- **SKILL.md**：`{KEYWORD}` 占位符 + 多触发词（"抖音搜XX"/"我想看XX"）
-- **matcher.py**：`match_with_trigger()` 支持前缀匹配
-- **runtime.py**：`_extract_search_arg()` 剥离前缀提取纯关键词
-
-### xz.py CLI 桥接
-- 创建 `xz.py`：统一 CLI 接口供 Hermes 调用（douyin-search / open-app / system / run-turn）
-- Hermes `windows-desktop` SKILL.md 重写为调 `xz.py`
-- 每个命令带 toast 气泡反馈
-
-### 右下角 Toast 气泡通知
-- **`src/ui/toast.py`**：暗色风格桌面气泡
-  - `show_toast()` — 绿色指示器，显示用户语音识别文字
-  - `show_reply()` — 蓝色指示器，显示系统回复（播放音频时跳过）
-  - 永远置顶（500ms 刷新 topmost + lift）
-  - DPI 感知（`SetProcessDpiAwareness(2)`）字体清晰
-  - 长文截断（80字+省略号），空文字防御
-  - 滑入→驻留3s→淡出动画，独立进程不阻塞
-- **main.py** 集成：识别后弹 toast，执行完弹 reply
-
-### B站 Web 自动化（已创建，待接入）
-- **`src/actions/bilibili_actions.py`**：构造搜索 URL → 用户 Chrome 打开 → pyautogui 点首个视频
-- 利用用户已登录的浏览器绕过反爬
-
-### 开机自启动
-- **`startup.ps1`**：预加载模型→启动 Hermes gateway→启动小张 daemon→弹就绪气泡
-- **Windows 计划任务** `XiaoZhang-Hermes-Startup`：登录后延迟 120s 执行
-- GPU 验证：wake_word(0.1s) + silero_vad(0.1s) + sensevoice(2.1s) 全部 DirectML GPU
-- 游戏模式：watchdog 自动 unload 大模型释放显存，只保留 26KB 唤醒词
-
-### Hermes 多模型配置
-- **主模型**：`deepseek-chat`（复杂推理）
-- **辅助模型**：`deepseek-v4-flash`（标题/摘要）、`gemini-2.0-flash`（视觉）
-- **自定义 provider**：Groq `llama-3.3-70b-versatile`（极速推理）
-- **fallback**：主模型挂了 → Groq → Gemini 链式兜底
-- 后续可加中转站 API 作为 custom_provider 一键调所有模型
-
-### 目录结构新增
-```
-├── xz.py                       Hermes↔小张 CLI 桥接
-├── startup.ps1                 开机自启动脚本（延迟120s）
-├── test_gpu.py                 GPU 模型验证脚本
-├── src/ui/toast.py             桌面右下角气泡通知
-├── src/actions/bilibili_actions.py  B站搜索播放（待接入）
-```
+### 模块化调研结论
+- **不需要 Python 模块化**（src/modules/ 已删除）
+- 正确做法：xz.py 命令 + SKILL.md 描述
+- 符合 agentskills.io 开放标准（Anthropic 发起，Claude Code/Hermes/Codex 都支持）
 
 ### 待办
-1. B站 `bilibili-search` 接入 xz.py + Hermes skill
-2. TTS 语音回复（好声音模型：ChatTTS / GPT-SoVITS / Fish Speech）
-3. OmniParser ONNX 转换 + 接入（D8-9 阶段）
-4. 唤醒词实测验证
-
+1. **DeepSeek 充值** — 当前欠费，Hermes 无法工作
+2. **唤醒词实测** — 模型加载成功但从未实际触发过
+3. **网盘搜索 API 稳定性** — 当前源经常 403，需要找更稳定的或自建 PanSou
+4. **Hermes fallback 配置** — 充值后加 Groq/Gemini 作为备用
+5. **browser toolset 按需启用** — 需要爬网页时临时 `hermes tools enable browser`
