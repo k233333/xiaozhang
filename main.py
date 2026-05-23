@@ -186,13 +186,15 @@ def speak(text: tuple[str, ...]) -> None:
 
 def status_cmd(probe_load: bool) -> None:
 
-    """查看资源状态：模式 / 本地模型 / CPU 内存 / cpu_guard"""
+    """查看资源状态：模式 / 本地模型 / CPU 内存 / cpu_guard / token 消耗"""
 
     from src.core.cpu_guard import cpu_load_pct, get_guard_state, memory_pressure  # noqa: PLC0415
 
     from src.core.game_detector import detector  # noqa: PLC0415
 
     from src.core.resource_manager import resource_manager  # noqa: PLC0415
+
+    from src.core.token_tracker import tracker  # noqa: PLC0415
 
     from src.local_models.base import available_providers  # noqa: PLC0415
 
@@ -238,6 +240,10 @@ def status_cmd(probe_load: bool) -> None:
 
         )
 
+    # Token 消耗统计
+
+    console.print(f"\n[bold yellow]💰 {tracker.summary_oneliner()}[/bold yellow]")
+
     console.print()
 
 
@@ -279,6 +285,94 @@ def mode_cmd(target: str) -> None:
         resource_manager.force_mode(Mode(target))
 
         console.print(f"[green]已强制切到 {target} 模式[/green]")
+
+
+
+@cli.command("tokens")
+
+@click.option("--reset", is_flag=True, help="清零统计（不可恢复）")
+
+@click.option("--budget", type=float, default=None, help="设置预警阈值（¥）")
+
+def tokens_cmd(reset: bool, budget: float | None) -> None:
+
+    """查看 LLM token 消耗统计 + 费用"""
+
+    from src.core.token_tracker import tracker  # noqa: PLC0415
+
+    import json as _json  # noqa: PLC0415
+
+    from pathlib import Path  # noqa: PLC0415
+
+
+
+    if reset:
+
+        if click.confirm("确定清零所有 token 统计？"):
+
+            p = Path("data/token_usage.json")
+
+            if p.exists():
+
+                p.unlink()
+
+            tracker.stats.clear()
+
+            tracker.session_stats.clear()
+
+            console.print("[green]已清零[/green]")
+
+        return
+
+
+
+    if budget is not None:
+
+        tracker.budget_warn_yuan = budget
+
+        tracker.save()
+
+        console.print(f"[green]预警阈值已设为 ¥{budget}[/green]")
+
+        return
+
+
+
+    console.print(f"\n{tracker.summary()}")
+
+    console.print()
+
+
+
+    # 估算剩余可用次数
+
+    total_cost = tracker.total_cost()
+
+    total_calls = sum(s.call_count for s in tracker.stats.values())
+
+    if total_calls > 0:
+
+        avg_cost = total_cost / total_calls
+
+        remaining_budget = tracker.budget_warn_yuan - total_cost
+
+        if avg_cost > 0 and remaining_budget > 0:
+
+            est_remaining = int(remaining_budget / avg_cost)
+
+            console.print(
+
+                f"[dim]平均每次 ¥{avg_cost:.5f} | "
+
+                f"预算剩余 ¥{remaining_budget:.3f} | "
+
+                f"预估还能调 ~{est_remaining} 次[/dim]"
+
+            )
+
+        elif remaining_budget <= 0:
+
+            console.print("[red]⚠️ 已超预警阈值！[/red]")
 
 
 

@@ -45,6 +45,10 @@ def _get_agent():
             enabled_toolsets=["terminal", "skills"],
             max_iterations=30,
         )
+        # Token 优化：如果 AIAgent 支持这些参数，取消注释
+        # max_tokens=512,        # 限制输出长度
+        # temperature=0,         # 确定性输出，减少废话
+        # system_prompt="...",   # 自定义精简 prompt
         log.info("Hermes AIAgent 初始化完成")
         return _agent
     except Exception as e:
@@ -147,6 +151,16 @@ async def run_turn(user_text: str, sm: StateMachine | None = None) -> TurnResult
         reply = await loop.run_in_executor(None, agent.chat, user_text)
         reply = (reply or "").strip()
         success = bool(reply)
+
+        # Token 优化：防止 session 历史累积导致 input tokens 递增
+        # 每次调用后 reset，确保下次调用只发 system prompt + 当前问题
+        if hasattr(agent, 'reset') or hasattr(agent, 'clear_history'):
+            try:
+                reset_fn = getattr(agent, 'reset', None) or getattr(agent, 'clear_history', None)
+                if reset_fn:
+                    reset_fn()
+            except Exception:
+                pass  # reset 失败不影响主流程
 
         log.info("Hermes 回复", reply=reply[:100], success=success)
         store.add_event(session_id, "hermes_reply", reply[:500])

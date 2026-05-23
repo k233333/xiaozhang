@@ -22,7 +22,9 @@ async def main() -> None:
     setup_logging()
     store.init_db()
     console.print("[bold cyan]小张开发控制台[/bold cyan]")
-    console.print("输入文字代替语音；输入 [yellow]:q[/yellow] 退出。\n")
+    console.print("输入文字代替语音；输入 [yellow]:q[/yellow] 退出，[yellow]:tokens[/yellow] 查看消耗。\n")
+
+    from src.core.token_tracker import tracker  # noqa: PLC0415
 
     while True:
         try:
@@ -35,6 +37,9 @@ async def main() -> None:
         text = text.strip()
         if text in (":q", ":quit", "exit", "quit"):
             break
+        if text == ":tokens":
+            console.print(tracker.summary())
+            continue
         if not text:
             continue
 
@@ -51,7 +56,8 @@ async def main() -> None:
                     f"({sr.elapsed_sec:.2f}s) {sr.message}"
                 )
         console.print(
-            f"[bold]结果：[/bold]{'[green]成功[/green]' if result.success else '[red]失败[/red]'}\n"
+            f"[bold]结果：[/bold]{'[green]成功[/green]' if result.success else '[red]失败[/red]'}"
+            f"  [dim]{tracker.summary_oneliner()}[/dim]\n"
         )
 
 

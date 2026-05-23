@@ -72,6 +72,9 @@ class CallResult:
     model: str
     elapsed_sec: float
     cached: bool = False
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_hit_tokens: int = 0
 
 
 def _read_prompt(name: str) -> str:
@@ -232,7 +235,7 @@ class LLMRouter:
         loop = asyncio.get_running_loop()
         t0 = time.monotonic()
 
-        def _call_sync() -> str:
+        def _call_sync() -> tuple[str, dict]:
             client = _get_provider_client(provider_name, provider_cfg)
             if provider_cfg.sdk == "openai":
                 return _openai_call(client, model, system, user, max_tokens, timeout)
@@ -241,7 +244,7 @@ class LLMRouter:
             raise ValueError(f"未支持的 SDK: {provider_cfg.sdk}")
 
         try:
-            text = await asyncio.wait_for(
+            text, usage = await asyncio.wait_for(
                 loop.run_in_executor(None, _call_sync),
                 timeout=timeout,
             )
@@ -250,11 +253,35 @@ class LLMRouter:
             return None
 
         elapsed = time.monotonic() - t0
-        log.info("LLM 调用完成", target=target, elapsed_sec=round(elapsed, 2), chars=len(text))
-        return CallResult(text=text, provider=provider_name, model=model, elapsed_sec=elapsed)
+
+        # Token 追踪
+        input_tokens = usage.get("input_tokens", 0)
+        output_tokens = usage.get("output_tokens", 0)
+        cache_hit = usage.get("cache_hit_tokens", 0)
+
+        if input_tokens or output_tokens:
+            from src.core.token_tracker import tracker  # noqa: PLC0415
+            tracker.record(
+                provider=provider_name,
+                model=model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cache_hit_tokens=cache_hit,
+            )
+
+        log.info(
+            "LLM 调用完成", target=target, elapsed_sec=round(elapsed, 2),
+            chars=len(text), in_tok=input_tokens, out_tok=output_tokens, cache=cache_hit,
+        )
+        return CallResult(
+            text=text, provider=provider_name, model=model, elapsed_sec=elapsed,
+            input_tokens=input_tokens, output_tokens=output_tokens,
+            cache_hit_tokens=cache_hit,
+        )
 
 
-def _openai_call(client, model, system, user, max_tokens, timeout) -> str:
+def _openai_call(client, model, system, user, max_tokens, timeout) -> tuple[str, dict]:
+    """返回 (text, usage_dict)"""
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
@@ -265,10 +292,20 @@ def _openai_call(client, model, system, user, max_tokens, timeout) -> str:
         max_tokens=max_tokens,
         timeout=timeout,
     )
-    return resp.choices[0].message.content or ""
+    text = resp.choices[0].message.content or ""
+    # DeepSeek 返回 usage: {prompt_tokens, completion_tokens, total_tokens, prompt_cache_hit_tokens}
+    usage = {}
+    if hasattr(resp, "usage") and resp.usage:
+        usage = {
+            "input_tokens": getattr(resp.usage, "prompt_tokens", 0) or 0,
+            "output_tokens": getattr(resp.usage, "completion_tokens", 0) or 0,
+            "cache_hit_tokens": getattr(resp.usage, "prompt_cache_hit_tokens", 0) or 0,
+        }
+    return text, usage
 
 
-def _anthropic_call(client, model, system, user, max_tokens) -> str:
+def _anthropic_call(client, model, system, user, max_tokens) -> tuple[str, dict]:
+    """返回 (text, usage_dict)"""
     resp = client.messages.create(
         model=model,
         max_tokens=max_tokens,
@@ -279,7 +316,15 @@ def _anthropic_call(client, model, system, user, max_tokens) -> str:
     for block in resp.content:
         if hasattr(block, "text"):
             parts.append(block.text)
-    return "".join(parts)
+    text = "".join(parts)
+    usage = {}
+    if hasattr(resp, "usage") and resp.usage:
+        usage = {
+            "input_tokens": getattr(resp.usage, "input_tokens", 0) or 0,
+            "output_tokens": getattr(resp.usage, "output_tokens", 0) or 0,
+            "cache_hit_tokens": 0,
+        }
+    return text, usage
 
 
 # 单例
