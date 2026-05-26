@@ -308,6 +308,237 @@ def cmd_search_pan(query: str) -> int:
         return 1
 
 
+def cmd_click_xy(x_str: str, y_str: str) -> int:
+    """绝对坐标点击（pyautogui，0 token，最快兜底）"""
+    from src.actions.raw_input import click_xy
+    try:
+        x, y = int(x_str), int(y_str)
+    except ValueError:
+        print(f"[ERROR] 坐标必须是整数: {x_str},{y_str}", file=sys.stderr)
+        return 1
+    ok = click_xy(x, y)
+    if ok:
+        print(f"[OK] click_xy ({x},{y})")
+        return 0
+    print(f"[FAIL] click_xy ({x},{y}) 失败", file=sys.stderr)
+    return 1
+
+
+def cmd_launch_chrome(url: str = "") -> int:
+    """启动一个开了 CDP 的 Chrome 实例（已存在则复用）"""
+    from src.actions.playwright_action import launch_chrome_with_cdp
+    ok = launch_chrome_with_cdp(url=url or None)
+    if ok:
+        suffix = ('，打开了 ' + url) if url else ''
+        print(f"[OK] CDP Chrome 就绪（端口 9222）{suffix}")
+        return 0
+    print("[FAIL] 无法启动 CDP Chrome", file=sys.stderr)
+    return 1
+
+
+def cmd_playwright_click(selector: str) -> int:
+    """通过 CSS / role / text 选择器点击 Chrome 元素（CDP 接管）"""
+    from src.actions.playwright_action import _is_cdp_alive, launch_chrome_with_cdp, playwright_click
+    if not _is_cdp_alive():
+        print("[INFO] CDP 未启动，先 launch-chrome …")
+        if not launch_chrome_with_cdp():
+            print("[FAIL] 无法启动 CDP Chrome", file=sys.stderr)
+            return 1
+    res = playwright_click(selector)
+    if res.success:
+        _toast(f"已点击「{res.matched_text or selector[:30]}」")
+        print(f"[OK] {res.message}")
+        if res.matched_text:
+            print(f"[TEXT] {res.matched_text}")
+        return 0
+    print(f"[FAIL] {res.message}", file=sys.stderr)
+    return 1
+
+
+def cmd_chrome_click(description: str) -> int:
+    """自然语言找 Chrome 元素并点击（启发式 selector 候选）"""
+    from src.actions.playwright_action import _is_cdp_alive, find_element_by_description, playwright_click
+    if not _is_cdp_alive():
+        print("[INFO] CDP 未启动，先用 launch-chrome 起 Chrome", file=sys.stderr)
+        return 1
+    print(f"[INFO] 在 Chrome 当前 tab 找元素: {description}", flush=True)
+    found = find_element_by_description(description)
+    if found is None:
+        print(f"[FAIL] 找不到匹配「{description}」的元素", file=sys.stderr)
+        return 1
+    selector = found["selector"]
+    print(f"[FOUND] selector={selector} text={found.get('matched_text', '')[:50]}", flush=True)
+    res = playwright_click(selector)
+    if res.success:
+        _toast(f"已点击「{found.get('matched_text', description)[:30]}」")
+        print(f"[OK] {res.message}")
+        import json as _json
+        print(f"[LEARNABLE] {_json.dumps(found, ensure_ascii=False)}")
+        return 0
+    print(f"[FAIL] 找到但点击失败: {res.message}", file=sys.stderr)
+    return 1
+
+
+def cmd_learn_chrome(args_str: str) -> int:
+    """从当前 Chrome 活跃 tab 学一个 deterministic skill。
+
+    用法：
+        xz.py learn-chrome <描述> -- <触发词1>|<触发词2>
+    """
+    from src.skills.json_skill import learn_chrome_click
+    if " -- " in args_str:
+        desc, triggers_part = args_str.split(" -- ", 1)
+    else:
+        desc = args_str
+        triggers_part = args_str
+    desc = desc.strip()
+    triggers = [t.strip() for t in triggers_part.split("|") if t.strip()]
+    if not triggers:
+        triggers = [desc]
+    if not desc:
+        print("[ERROR] 缺少描述", file=sys.stderr)
+        return 1
+    print(f"[INFO] 学习 Chrome skill: 描述={desc} 触发词={triggers}", flush=True)
+    skill = learn_chrome_click(triggers=triggers, description=desc)
+    if skill is None:
+        print(f"[FAIL] 在 Chrome 当前 tab 找不到「{desc}」", file=sys.stderr)
+        return 1
+    print(f"[OK] JSON skill: {skill.name}")
+    print(f"     selector: {skill.selector}")
+    print(f"     文字: {skill.matched_text}")
+    print(f"     page: {skill.page_url_hint}")
+    print(f"     triggers: {skill.triggers}")
+    if skill.fallback_method == "click_xy":
+        print(f"     fallback: click_xy ({skill.fallback_x},{skill.fallback_y})")
+    print(f"[NEXT] 下次说「{triggers[0]}」即可 0 token 重放")
+    return 0
+
+
+def cmd_skill_run(name: str) -> int:
+    """直接按名字执行一个已学的 JSON skill"""
+    from src.skills.json_skill import execute, find_by_name
+    skill = find_by_name(name)
+    if skill is None:
+        print(f"[FAIL] 没有名为 {name} 的 JSON skill", file=sys.stderr)
+        return 1
+    ok, msg = execute(skill)
+    if ok:
+        print(f"[OK] {msg or 'skill 执行成功'}")
+        return 0
+    print(f"[FAIL] {msg}", file=sys.stderr)
+    return 1
+
+
+def cmd_skill_list() -> int:
+    """列出所有 JSON skill"""
+    from src.skills.json_skill import load_all
+    skills = load_all()
+    if not skills:
+        print("(没有 JSON skill — 用 learn-chrome 学一个)")
+        return 0
+    print(f"\n[OK] 共 {len(skills)} 个 JSON skill:\n")
+    for s in skills:
+        rate = ""
+        if s.use_count > 0:
+            ok = s.use_count - s.fail_count
+            rate = f" 成功率 {ok}/{s.use_count}"
+        print(f"  - {s.name}  [{s.method}] {s.selector or s.target or ''}{rate}")
+        print(f"    triggers: {' | '.join(s.triggers)}")
+    print()
+    return 0
+
+
+def cmd_skill_prune(dry_run: bool = False) -> int:
+    """清理 JSON skill"""
+    from src.skills.json_skill import prune
+    result = prune(dry_run=dry_run)
+    if not result["deleted"]:
+        print(f"[OK] 没有需要清理的 skill（共 {result['total_before']} 个）")
+        return 0
+    action = "将删除" if dry_run else "已删除"
+    print(f"\n[OK] {action} {len(result['deleted'])} 个 (剩 {result['kept']} 个):\n")
+    for name, reason in result["deleted"]:
+        print(f"  - {name}  → {reason}")
+    print()
+    return 0
+
+
+def cmd_screen_parse() -> int:
+    """截屏 → YOLO + OCR → 打印元素表（调试用）"""
+    from src.vision.screen_parser import parse_screen
+    print("[INFO] 截屏 + 解析中...", flush=True)
+    res = parse_screen()
+    print(f"\n[OK] 共 {len(res.elements)} 个元素 "
+          f"(YOLO {res.yolo_ms:.0f}ms, OCR {res.ocr_ms:.0f}ms, 总 {res.total_ms:.0f}ms)\n")
+    icons = [e for e in res.elements if e.type == "icon"]
+    texts = [e for e in res.elements if e.type == "text"]
+    print(f"图标 {len(icons)} 个，文字 {len(texts)} 个\n")
+    print("文字元素（前 30 个）:")
+    for e in texts[:30]:
+        print(f"  [{e.id}] {e.text!r:30s} center=({e.center[0]},{e.center[1]}) "
+              f"bbox={e.bbox} conf={e.score:.2f}")
+    if len(texts) > 30:
+        print(f"  ... +{len(texts) - 30} more")
+    print()
+    return 0
+
+
+def cmd_find_element(description: str) -> int:
+    """OCR 找屏幕元素，输出坐标"""
+    from src.vision.screen_parser import find_element_by_text
+    print(f"[INFO] 在屏幕上找: {description}", flush=True)
+    elem = find_element_by_text(description)
+    if elem is None:
+        print(f"[FAIL] 没找到匹配「{description}」的元素", file=sys.stderr)
+        return 1
+    print(f"[OK] 找到: {elem.text!r}")
+    print(f"     center: ({elem.center[0]},{elem.center[1]})")
+    print(f"     bbox: {elem.bbox}")
+    print(f"     conf: {elem.score:.2f}")
+    print(f"[NEXT] xz.py click-xy {elem.center[0]} {elem.center[1]}")
+    return 0
+
+
+def cmd_screen_click(args_str: str) -> int:
+    """OCR 找元素并点击。可选学成 JSON skill。
+
+    用法：
+        xz.py screen-click <描述>                          # 找到就点，不学
+        xz.py screen-click <描述> -- <trigger1>|<trigger2>  # 找到、点、学
+    """
+    from src.actions.raw_input import click_xy
+    from src.skills.json_skill import learn_screen_click
+    from src.vision.screen_parser import find_element_by_text
+
+    if " -- " in args_str:
+        desc, triggers_part = args_str.split(" -- ", 1)
+        triggers = [t.strip() for t in triggers_part.split("|") if t.strip()]
+    else:
+        desc = args_str
+        triggers = []
+
+    desc = desc.strip()
+    print(f"[INFO] 屏幕点击: {desc}", flush=True)
+    elem = find_element_by_text(desc)
+    if elem is None:
+        print(f"[FAIL] 没找到「{desc}」", file=sys.stderr)
+        return 1
+    cx, cy = elem.center
+    if not click_xy(cx, cy):
+        print(f"[FAIL] 点击失败 ({cx},{cy})", file=sys.stderr)
+        return 1
+    _toast(f"已点击「{elem.text}」")
+    print(f"[OK] 点击 {elem.text!r} @ ({cx},{cy})")
+    if triggers:
+        skill = learn_screen_click(
+            triggers=triggers, description=desc,
+            x=cx, y=cy, matched_text=elem.text,
+        )
+        if skill:
+            print(f"[LEARNED] JSON skill: {skill.name} → 下次说「{triggers[0]}」直接坐标重放")
+    return 0
+
+
 def cmd_news(topic: str) -> int:
     """抓取科技/金融资讯"""
     import asyncio
@@ -350,6 +581,22 @@ def print_help():
   python xz.py search-pan <关键词>      搜索夸克网盘资源
   python xz.py download <磁力链>         用迅雷下载磁力链接
   python xz.py news [话题]              抓取科技/金融资讯 (tech/36kr/hn)
+
+  --- 视觉学习 / 桌面交互（0 token，DirectML GPU）---
+  python xz.py click-xy <x> <y>          坐标点击（pyautogui，最快兜底）
+  python xz.py launch-chrome [url]       启动 CDP Chrome（远程调试 9222）
+  python xz.py playwright-click <选择器> 用 CSS 选择器点击 Chrome 元素
+  python xz.py chrome-click <描述>       自然语言找 Chrome 元素并点击
+  python xz.py learn-chrome <描述> -- <t1>|<t2>
+                                          学 Chrome 元素 → 生成 JSON skill
+  python xz.py screen-parse              截屏并解析所有 UI 元素（调试）
+  python xz.py find-element <描述>       OCR 找屏幕元素，输出坐标
+  python xz.py screen-click <描述> [-- <t1>|<t2>]
+                                          OCR 找元素并点击；带 -- 时学成 skill
+  python xz.py skill-run <skill名>       直接执行已学的 JSON skill
+  python xz.py skill-list                列出所有 JSON skill
+  python xz.py skill-prune [--dry]       清理低质量/久未使用 JSON skill
+
   python xz.py run-turn <文字>          完整链路执行（含Hermes规划+自动学习）
 
 示例:
@@ -420,6 +667,61 @@ def main():
             print("[ERROR] 请提供搜索关键词，例如: python xz.py search-pan 低智商犯罪", file=sys.stderr)
             return 1
         return cmd_search_pan(rest)
+
+    elif cmd == "click-xy":
+        parts = rest.split()
+        if len(parts) < 2:
+            print("[ERROR] 用法: click-xy <x> <y>", file=sys.stderr)
+            return 1
+        return cmd_click_xy(parts[0], parts[1])
+
+    elif cmd == "launch-chrome":
+        return cmd_launch_chrome(rest)
+
+    elif cmd == "playwright-click":
+        if not rest:
+            print("[ERROR] 缺少 selector", file=sys.stderr)
+            return 1
+        return cmd_playwright_click(rest)
+
+    elif cmd == "chrome-click":
+        if not rest:
+            print("[ERROR] 缺少元素描述", file=sys.stderr)
+            return 1
+        return cmd_chrome_click(rest)
+
+    elif cmd == "learn-chrome":
+        if not rest:
+            print("[ERROR] 缺少描述", file=sys.stderr)
+            return 1
+        return cmd_learn_chrome(rest)
+
+    elif cmd == "skill-run":
+        if not rest:
+            print("[ERROR] 缺少 skill 名", file=sys.stderr)
+            return 1
+        return cmd_skill_run(rest)
+
+    elif cmd == "skill-list":
+        return cmd_skill_list()
+
+    elif cmd == "skill-prune":
+        return cmd_skill_prune(dry_run=("--dry" in rest))
+
+    elif cmd == "screen-parse":
+        return cmd_screen_parse()
+
+    elif cmd == "find-element":
+        if not rest:
+            print("[ERROR] 缺少描述", file=sys.stderr)
+            return 1
+        return cmd_find_element(rest)
+
+    elif cmd == "screen-click":
+        if not rest:
+            print("[ERROR] 缺少描述", file=sys.stderr)
+            return 1
+        return cmd_screen_click(rest)
 
     elif cmd == "news":
         return cmd_news(rest or "all")

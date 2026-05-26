@@ -1,11 +1,11 @@
-"""中文 ASR 转写（v2.0）
+"""中文 ASR 转写（v3.0）
 
-主路径：SenseVoice-Small（DirectML GPU，通过 ResourceManager）
-回退路径：faster-whisper small（CPU，v1 遗留保留作为兜底）
+优先级：
+  1. 豆包 ASR（云端，中文口语最强，~0.5-1s）
+  2. SenseVoice-Small（DirectML GPU，60s 后加载，<1s）
+  3. faster-whisper small（CPU fallback，1-2s）
 
-切换逻辑：
-  - SenseVoice 已加载（标准模式 60s 后）→ 走 GPU，<1s
-  - SenseVoice 未加载（前 60s / 游戏模式）→ 走 faster-whisper CPU，1-2s
+豆包 ASR 失败时自动降级，不影响主流程。
 """
 from __future__ import annotations
 
@@ -78,13 +78,28 @@ def _to_float32_16k(samples: np.ndarray, sample_rate: int) -> np.ndarray:
 # ---- 主接口 ----
 
 async def transcribe(samples: np.ndarray, sample_rate: int) -> Transcript | None:
-    """异步转写。优先 SenseVoice GPU，失败回退 faster-whisper CPU。"""
+    """异步转写。优先豆包 ASR，其次 SenseVoice GPU，最后 faster-whisper CPU。"""
     duration = len(samples) / sample_rate
     if duration < 0.3:
         log.info("音频太短，跳过转写", duration=duration)
         return None
 
-    # 1. 尝试 SenseVoice（通过 ResourceManager）
+    # 1. 豆包 ASR（最高优先级，中文口语最强）
+    try:
+        from src.audio.stt_doubao import transcribe as doubao_transcribe  # noqa: PLC0415
+        text = await doubao_transcribe(samples, sample_rate)
+        if text:
+            return Transcript(
+                text=text,
+                language="zh",
+                duration_sec=duration,
+                elapsed_sec=0.0,
+                backend="doubao",
+            )
+    except Exception as e:
+        log.debug("豆包 ASR 跳过", err=str(e))
+
+    # 2. SenseVoice GPU
     text, backend = await _try_sensevoice(samples, sample_rate)
     if text:
         return Transcript(
@@ -95,7 +110,7 @@ async def transcribe(samples: np.ndarray, sample_rate: int) -> Transcript | None
             backend=backend,
         )
 
-    # 2. fallback faster-whisper
+    # 3. faster-whisper CPU fallback
     return await _transcribe_fw(samples, sample_rate, duration)
 
 

@@ -17,6 +17,7 @@ MODELS = [
     ("wake_word", os.path.join(ROOT, "models", "wake_word", "xiaozhang_wakeword.onnx")),
     ("silero_vad", os.path.join(ROOT, "models", "silero_vad.onnx")),
     ("sensevoice", os.path.join(ROOT, "models", "sensevoice_small.onnx")),
+    ("omniparser_yolo", os.path.join(ROOT, "models", "omniparser_v2", "icon_detect", "model.onnx")),
 ]
 
 
@@ -57,6 +58,20 @@ def main():
         print("All models loaded on GPU successfully.", flush=True)
     else:
         print("WARNING: some models on CPU or failed.", flush=True)
+
+    # RapidOCR（3 个内置 ONNX session，走 DirectML）
+    print("  rapidocr: loading...", flush=True)
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+        t0 = time.time()
+        ocr = RapidOCR(det_use_dml=True, rec_use_dml=True, cls_use_dml=True)
+        elapsed = time.time() - t0
+        print(f"  rapidocr: GPU ({elapsed:.1f}s)", flush=True)
+        del ocr
+    except ImportError:
+        print("  rapidocr: SKIP (not installed)", flush=True)
+    except Exception as e:
+        print(f"  rapidocr: FAILED ({e})", flush=True)
 
     return 0
 

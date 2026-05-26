@@ -25,15 +25,25 @@ from src.core.logger import get_logger
 
 log = get_logger(__name__)
 
-# DeepSeek 定价（¥/M tokens，2026-05 价格）
-# https://platform.deepseek.com/api-docs/pricing
+# DeepSeek 官方定价（2026-04 永久价格，USD→CNY 按 7.2 折算）
+# https://api-docs.deepseek.com/quick_start/pricing
+#
+# 价格说明：
+#   - cache_hit 永久降为 input 价格的 1/10（极便宜，几乎不计费）
+#   - deepseek-reasoner (v4-pro) 永久降为原价的 1/4
+#   - 短期同一 system prompt 反复调用 → 大部分输入走 cache_hit，实际成本接近 0
 _PRICING = {
     "deepseek": {
-        "deepseek-chat": {"input": 1.0, "output": 2.0, "cache_hit": 0.1},
-        "deepseek-reasoner": {"input": 4.0, "output": 16.0, "cache_hit": 0.4},
+        # deepseek-chat (= v4-flash 非思考模式)
+        "deepseek-chat": {"input": 1.0, "output": 2.0, "cache_hit": 0.2},
+        # deepseek-reasoner (= v4-pro 思考模式，永久 1/4 价)
+        "deepseek-reasoner": {"input": 3.1, "output": 6.3, "cache_hit": 0.026},
+        # 别名兜底
+        "deepseek-v4-flash": {"input": 1.0, "output": 2.0, "cache_hit": 0.2},
+        "deepseek-v4-pro": {"input": 3.1, "output": 6.3, "cache_hit": 0.026},
     },
     "groq": {
-        # Groq 免费，但有 TPM 限制
+        # Groq 免费但有 TPM 限制
         "*": {"input": 0.0, "output": 0.0, "cache_hit": 0.0},
     },
     "gemini": {

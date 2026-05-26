@@ -35,6 +35,9 @@ MIN_CONSECUTIVE = 1
 # 两次唤醒之间的冷却时间（秒）
 COOLDOWN_SEC = 3.0
 
+# 唤醒后立刻录的指令音频（秒）
+POST_WAKE_RECORD_SEC = 6.0
+
 
 class WakeWordLoop:
     """唤醒词持续监听协程"""
@@ -43,6 +46,18 @@ class WakeWordLoop:
         self.sm = sm
         self._last_trigger_ts: float = 0.0
         self._silent_chunks: int = 0
+        # 唤醒后录到的指令音频，供 main.py 取走
+        self._pending_audio: np.ndarray | None = None
+        self._pending_sr: int = 16000
+
+    def take_pending_audio(self) -> tuple[np.ndarray, int] | None:
+        """取走唤醒后录到的指令音频（只能取一次）"""
+        if self._pending_audio is not None:
+            audio = self._pending_audio
+            sr = self._pending_sr
+            self._pending_audio = None
+            return audio, sr
+        return None
 
     async def run(self) -> None:
         """主循环：持续录 2 秒片段 → 检测唤醒词"""
@@ -105,9 +120,22 @@ class WakeWordLoop:
                 log.info("唤醒词命中！", prob=round(prob, 4), threshold=threshold)
                 self._play_ding()
 
-                # 通知状态机
+                # 唤醒后立刻录指令（不等 VAD，直接录 POST_WAKE_RECORD_SEC 秒）
+                # 这样用户说完唤醒词后紧接着说指令，不会卡死
                 if self.sm.state == State.IDLE:
                     await self.sm.transition(State.LISTENING)
+                    post_samples = int(sr * POST_WAKE_RECORD_SEC)
+                    try:
+                        cmd_audio = await loop.run_in_executor(
+                            None,
+                            lambda: self._record_chunk(post_samples, sr, device),
+                        )
+                        if cmd_audio is not None and len(cmd_audio) > 0:
+                            self._pending_audio = cmd_audio
+                            self._pending_sr = sr
+                            log.info("唤醒后指令录音完成", duration_sec=round(len(cmd_audio)/sr, 2))
+                    except Exception as e:  # noqa: BLE001
+                        log.warning("唤醒后录音失败", err=str(e))
 
     def _record_chunk(self, samples: int, sr: int, device) -> np.ndarray | None:
         """同步录一个 chunk"""

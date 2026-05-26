@@ -230,6 +230,8 @@ mode_models:
 
     - omniparser
 
+    - rapidocr
+
   # 完整标准模式（watchdog 切换时用）
 
   standard:
@@ -241,6 +243,8 @@ mode_models:
     - sensevoice
 
     - omniparser
+
+    - rapidocr
 
   # 游戏模式
 
@@ -283,6 +287,14 @@ local_models:
     fallback: cpu
 
     model_path: models/omniparser_v2/
+
+  rapidocr:
+
+    backend: directml
+
+    fallback: cpu
+
+    model_path: models/rapidocr_placeholder
 
 
 

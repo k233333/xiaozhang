@@ -16,6 +16,7 @@ from src.core.config import settings
 from src.core.logger import get_logger
 from src.local_models.base import LocalModel
 from src.local_models.omniparser_model import OmniParserModel
+from src.local_models.rapidocr_model import RapidOCRModel
 from src.local_models.sensevoice_model import SenseVoiceModel
 from src.local_models.vad_model import SileroVadModel
 from src.local_models.wake_word_model import WakeWordModel
@@ -33,6 +34,7 @@ _MODEL_CLASSES = {
     "silero_vad": SileroVadModel,
     "sensevoice": SenseVoiceModel,
     "omniparser": OmniParserModel,
+    "rapidocr": RapidOCRModel,
 }
 
 

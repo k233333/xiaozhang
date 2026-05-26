@@ -1,0 +1,20 @@
+{
+  "name": "动画",
+  "triggers": [
+    "b站动画",
+    "看动画"
+  ],
+  "method": "playwright",
+  "selector": "text=动画",
+  "text_match": null,
+  "target": null,
+  "fallback_method": "click_xy",
+  "fallback_x": 443,
+  "fallback_y": 1265,
+  "page_url_hint": "https://www.bilibili.com/v/popular/all?spm_id_from=333.1007.0.0",
+  "matched_text": "【毕设动画】《范进中举》",
+  "learned_at": "2026-05-23T14:28:53",
+  "use_count": 0,
+  "fail_count": 0,
+  "last_failure": ""
+}

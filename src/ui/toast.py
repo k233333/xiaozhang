@@ -1,234 +1,299 @@
 # coding: utf-8
-"""桌面右下角气泡通知 — 显示语音识别文字 & 简短回复
+"""桌面右下角状态气泡 — 单例持久窗口，任务期间常驻并实时更新状态。
 
-特性：
-- 暗色半透明风格
-- 出现在屏幕右下角，不抢焦点
-- **永远在最上层**（定时 lift + topmost，不会被任何窗口盖住）
-- 文字过长自动截断（不会崩溃/溢出屏幕）
-- 滑入 → 驻留 3s → 淡出
-- 在独立进程中运行，不阻塞主线程
-- show_reply() 用于简短回复（"好的"/"已打开"等）
+架构：
+  - 独立后台进程运行 tkinter 窗口（不阻塞主进程）
+  - 主进程通过 multiprocessing.Queue 发送更新指令
+  - 气泡在任务处理期间常驻，任务完成后自动淡出
+
+状态流：
+  唤醒词触发 → show_listening()     "正在听…"（绿色，常驻）
+  ASR 完成   → show_user(text)      显示识别文字（常驻）
+  CC 调用中  → show_status(msg)     "正在处理…"（蓝色，常驻）
+  任务完成   → show_reply(text)     显示结果（3s 后淡出）
+  出错       → show_error(msg)      显示错误（3s 后淡出）
 
 用法：
-    from src.ui.toast import show_toast, show_reply
-    show_toast("我想看不惑兄弟")           # 显示用户语音
-    show_reply("好的，正在打开抖音")        # 显示回复
+    from src.ui.toast import show_listening, show_user, show_status, show_reply, show_error, dismiss
 """
 from __future__ import annotations
 
 import multiprocessing
-import sys
 import time
+from typing import Literal
 
-# 最大显示字符数（超出截断 + 省略号）
+# 消息类型
+MsgType = Literal["listening", "user", "status", "reply", "error", "dismiss"]
+
+# 全局 Queue 和进程（懒初始化）
+_queue: multiprocessing.Queue | None = None
+_proc: multiprocessing.Process | None = None
+
 _MAX_TEXT_LEN = 80
-# 窗口最大宽度/高度限制
 _MAX_W = 420
-_MAX_H = 160
 
 
-def _run_toast(
-    text: str,
-    duration: float = 3.0,
-    title: str = "小张",
-    style: str = "user",  # "user" = 用户语音, "reply" = 系统回复
-) -> None:
-    """在独立进程中创建并显示 toast 窗口。"""
+# ─────────────────────────────────────────────
+# 后台进程：运行 tkinter 窗口
+# ─────────────────────────────────────────────
+
+def _toast_process(q: multiprocessing.Queue) -> None:
+    """在独立进程中运行持久气泡窗口，从 Queue 接收更新指令。"""
     import tkinter as tk
 
-    # Windows 高 DPI 修复：声明进程 DPI 感知，避免字体模糊
     try:
         import ctypes
-        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
     except Exception:
-        try:
-            ctypes.windll.user32.SetProcessDPIAware()  # Win8 fallback
-        except Exception:
-            pass
+        pass
 
-    # 防御：空文字 / None
-    if not text or not text.strip():
-        return
+    # ── 配色 ──
+    STYLES = {
+        "listening": {"bg": "#0a1628", "indicator": "#00d4aa", "text": "#e6f1ff",
+                      "label": "小张 · 在听", "font_size": 13},
+        "user":      {"bg": "#1a1a2e", "indicator": "#00d4aa", "text": "#e6f1ff",
+                      "label": "小张 · 听到", "font_size": 13},
+        "status":    {"bg": "#0d2137", "indicator": "#4fc3f7", "text": "#b3e5fc",
+                      "label": "小张 · 处理中", "font_size": 12},
+        "reply":     {"bg": "#0d2137", "indicator": "#4fc3f7", "text": "#b3e5fc",
+                      "label": "小张 · 回复", "font_size": 12},
+        "error":     {"bg": "#2d0a0a", "indicator": "#ff5252", "text": "#ffcdd2",
+                      "label": "小张 · 出错", "font_size": 12},
+    }
 
-    # 截断过长文本
-    display_text = text.strip()
-    if len(display_text) > _MAX_TEXT_LEN:
-        display_text = display_text[:_MAX_TEXT_LEN - 1] + "…"
-
-    # --- 配色方案 ---
-    if style == "reply":
-        bg_color = "#0d2137"
-        indicator_color = "#4fc3f7"
-        text_color = "#b3e5fc"
-        font_size = 12
-    else:  # user
-        bg_color = "#1a1a2e"
-        indicator_color = "#00d4aa"
-        text_color = "#e6f1ff"
-        font_size = 13
-
-    # --- 窗口创建 ---
     try:
         root = tk.Tk()
     except Exception:
-        return  # 无图形环境（服务模式），静默退出
+        return
 
     root.overrideredirect(True)
     root.attributes("-topmost", True)
-    root.attributes("-alpha", 0.0)  # 初始透明，滑入时渐显
-    root.configure(bg=bg_color)
-
-    # 不抢焦点（Windows toolwindow 不出现在任务栏）
+    root.attributes("-alpha", 0.0)
+    root.configure(bg="#1a1a2e")
     try:
         root.wm_attributes("-toolwindow", True)
     except tk.TclError:
         pass
 
-    # --- 布局 ---
     pad_x, pad_y = 18, 12
 
-    # 标题行
-    title_frame = tk.Frame(root, bg=bg_color)
+    title_frame = tk.Frame(root, bg="#1a1a2e")
     title_frame.pack(fill="x", padx=pad_x, pady=(pad_y, 0))
 
-    indicator = tk.Label(title_frame, text="●", fg=indicator_color, bg=bg_color,
-                         font=("Segoe UI", 8))
-    indicator.pack(side="left")
+    indicator_lbl = tk.Label(title_frame, text="●", fg="#00d4aa", bg="#1a1a2e",
+                             font=("Segoe UI", 8))
+    indicator_lbl.pack(side="left")
 
-    title_suffix = "听到" if style == "user" else "回复"
-    title_label = tk.Label(title_frame, text=f"{title} · {title_suffix}",
-                           fg="#8892b0", bg=bg_color,
-                           font=("Microsoft YaHei UI", 8))
-    title_label.pack(side="left", padx=(5, 0))
+    title_lbl = tk.Label(title_frame, text="小张 · 在听",
+                         fg="#8892b0", bg="#1a1a2e",
+                         font=("Microsoft YaHei UI", 8))
+    title_lbl.pack(side="left", padx=(5, 0))
 
-    # 正文
-    msg_label = tk.Label(
-        root,
-        text=display_text,
-        fg=text_color,
-        bg=bg_color,
-        font=("Microsoft YaHei UI", font_size, "bold"),
-        wraplength=min(340, _MAX_W - pad_x * 2),
-        justify="left",
-        anchor="w",
-    )
-    msg_label.pack(fill="x", padx=pad_x, pady=(6, pad_y))
+    msg_lbl = tk.Label(root, text="", fg="#e6f1ff", bg="#1a1a2e",
+                       font=("Microsoft YaHei UI", 13, "bold"),
+                       wraplength=min(340, _MAX_W - pad_x * 2),
+                       justify="left", anchor="w")
+    msg_lbl.pack(fill="x", padx=pad_x, pady=(6, pad_y))
 
-    # --- 尺寸计算 & 定位到右下角 ---
-    root.update_idletasks()
-    w = min(max(msg_label.winfo_reqwidth() + pad_x * 2 + 10, 240), _MAX_W)
-    h = min(title_frame.winfo_reqheight() + msg_label.winfo_reqheight() + pad_y * 2 + 6, _MAX_H)
+    # 状态：visible=True 表示窗口已滑入
+    state = {"visible": False, "alpha": 0.0, "dismiss_after": None}
 
-    scr_w = root.winfo_screenwidth()
-    scr_h = root.winfo_screenheight()
+    def _reposition():
+        root.update_idletasks()
+        w = min(max(msg_lbl.winfo_reqwidth() + pad_x * 2 + 10, 240), _MAX_W)
+        h = title_frame.winfo_reqheight() + msg_lbl.winfo_reqheight() + pad_y * 2 + 6
+        h = min(h, 160)
+        scr_w = root.winfo_screenwidth()
+        scr_h = root.winfo_screenheight()
+        x = scr_w - w - 16
+        y = scr_h - h - 60
+        root.geometry(f"{w}x{h}+{x}+{y}")
 
-    # 右下角，避开任务栏（约 50px）
-    x = scr_w - w - 16
-    y = scr_h - h - 60
+    def _apply_style(style_key: str, text: str):
+        s = STYLES.get(style_key, STYLES["status"])
+        bg = s["bg"]
+        root.configure(bg=bg)
+        title_frame.configure(bg=bg)
+        indicator_lbl.configure(fg=s["indicator"], bg=bg)
+        title_lbl.configure(text=s["label"], bg=bg)
+        display = text.strip()
+        if len(display) > _MAX_TEXT_LEN:
+            display = display[:_MAX_TEXT_LEN - 1] + "…"
+        msg_lbl.configure(
+            text=display,
+            fg=s["text"],
+            bg=bg,
+            font=("Microsoft YaHei UI", s["font_size"], "bold"),
+        )
+        _reposition()
 
-    start_y = y + 25  # 滑入起点
-
-    root.geometry(f"{w}x{h}+{x}+{start_y}")
-
-    # --- 保持永远在最上层 ---
-    def keep_on_top():
-        try:
-            root.attributes("-topmost", False)
-            root.attributes("-topmost", True)
-            root.lift()
-            root.after(500, keep_on_top)  # 每 500ms 刷新一次置顶
-        except tk.TclError:
-            pass  # 窗口已销毁
-
-    # --- 动画 ---
-    def slide_in(step=0):
+    def _slide_in(step=0):
         if step <= 10:
-            progress = step / 10
-            current_y = int(start_y - (start_y - y) * progress)
-            alpha = 0.92 * progress
+            alpha = 0.92 * (step / 10)
             try:
-                root.geometry(f"{w}x{h}+{x}+{current_y}")
                 root.attributes("-alpha", alpha)
             except tk.TclError:
                 return
-            root.after(18, slide_in, step + 1)
+            root.after(18, _slide_in, step + 1)
         else:
             root.attributes("-alpha", 0.92)
-            keep_on_top()  # 开始置顶循环
-            root.after(int(duration * 1000), fade_out)
+            state["visible"] = True
+            state["alpha"] = 0.92
 
-    def fade_out(alpha=0.92):
+    def _fade_out(alpha=0.92):
         if alpha > 0.05:
             try:
                 root.attributes("-alpha", alpha)
             except tk.TclError:
                 return
-            root.after(25, fade_out, alpha - 0.07)
+            root.after(25, _fade_out, alpha - 0.07)
         else:
             try:
-                root.destroy()
-            except Exception:
+                root.attributes("-alpha", 0.0)
+                state["visible"] = False
+                state["alpha"] = 0.0
+            except tk.TclError:
                 pass
 
-    slide_in()
+    def _keep_on_top():
+        try:
+            root.attributes("-topmost", False)
+            root.attributes("-topmost", True)
+            root.lift()
+            root.after(500, _keep_on_top)
+        except tk.TclError:
+            pass
+
+    _keep_on_top()
+
+    def _poll_queue():
+        """每 50ms 检查一次 Queue，处理更新指令。"""
+        try:
+            while not q.empty():
+                msg = q.get_nowait()
+                if not isinstance(msg, dict):
+                    continue
+
+                kind = msg.get("type", "")
+                text = msg.get("text", "")
+
+                if kind == "dismiss":
+                    if state["visible"]:
+                        _fade_out()
+                    state["dismiss_after"] = None
+                    root.after(100, _poll_queue)
+                    return
+
+                # 更新内容
+                _apply_style(kind, text)
+
+                # 如果还没显示，滑入
+                if not state["visible"]:
+                    _slide_in()
+
+                # 决定是否自动消失
+                auto_dismiss_ms = msg.get("auto_dismiss_ms", 0)
+                if state["dismiss_after"] is not None:
+                    root.after_cancel(state["dismiss_after"])
+                    state["dismiss_after"] = None
+
+                if auto_dismiss_ms > 0:
+                    state["dismiss_after"] = root.after(auto_dismiss_ms, _fade_out)
+
+        except Exception:
+            pass
+        root.after(50, _poll_queue)
+
+    _poll_queue()
 
     try:
         root.mainloop()
     except Exception:
-        pass  # 防止任何异常导致进程崩溃
+        pass
 
 
+# ─────────────────────────────────────────────
+# 主进程 API
+# ─────────────────────────────────────────────
+
+def _ensure_running() -> multiprocessing.Queue:
+    """确保后台 toast 进程在运行，返回 Queue。"""
+    global _queue, _proc
+    if _proc is not None and _proc.is_alive():
+        return _queue
+    # 启动新进程
+    _queue = multiprocessing.Queue()
+    _proc = multiprocessing.Process(target=_toast_process, args=(_queue,), daemon=True)
+    _proc.start()
+    time.sleep(0.1)  # 等窗口初始化
+    return _queue
+
+
+def _send(msg: dict) -> None:
+    try:
+        q = _ensure_running()
+        q.put_nowait(msg)
+    except Exception:
+        pass
+
+
+def show_listening() -> None:
+    """唤醒词触发，显示"正在听…"（常驻，不自动消失）"""
+    _send({"type": "listening", "text": "正在听…", "auto_dismiss_ms": 0})
+
+
+def show_user(text: str) -> None:
+    """ASR 识别完成，显示用户说的话（常驻，等待处理结果）"""
+    if not text or not text.strip():
+        return
+    _send({"type": "user", "text": text, "auto_dismiss_ms": 0})
+
+
+def show_status(text: str) -> None:
+    """任务处理中，显示状态信息（常驻）
+    例如："正在调用 API…" / "正在执行命令…" / "网络重试中 (2/3)…"
+    """
+    if not text or not text.strip():
+        return
+    _send({"type": "status", "text": text, "auto_dismiss_ms": 0})
+
+
+def show_reply(text: str, duration: float = 3.0) -> None:
+    """任务完成，显示结果（duration 秒后自动淡出）"""
+    if not text or not text.strip():
+        return
+    _send({"type": "reply", "text": text, "auto_dismiss_ms": int(duration * 1000)})
+
+
+def show_error(text: str, duration: float = 4.0) -> None:
+    """显示错误信息（duration 秒后自动淡出）"""
+    if not text or not text.strip():
+        return
+    _send({"type": "error", "text": text, "auto_dismiss_ms": int(duration * 1000)})
+
+
+def dismiss() -> None:
+    """立即淡出气泡"""
+    _send({"type": "dismiss", "text": ""})
+
+
+# ── 兼容旧接口 ──
 def show_toast(text: str, duration: float = 3.0, title: str = "小张") -> None:
-    """非阻塞地显示右下角气泡 — 用户语音识别文字。
-
-    Args:
-        text: 语音识别文字
-        duration: 驻留秒数
-        title: 气泡标题
-    """
-    if not text or not text.strip():
-        return
-    p = multiprocessing.Process(
-        target=_run_toast,
-        args=(text, duration, title, "user"),
-        daemon=True,
-    )
-    p.start()
-
-
-def show_reply(text: str, duration: float = 2.5, title: str = "小张") -> None:
-    """非阻塞地显示右下角气泡 — 系统简短回复。
-
-    用于"好的" / "已打开" / "正在搜索…" 等反馈。
-    播放音频时不要调用此函数（由调用方控制）。
-
-    Args:
-        text: 回复文字
-        duration: 驻留秒数（回复默认短一点）
-        title: 气泡标题
-    """
-    if not text or not text.strip():
-        return
-    p = multiprocessing.Process(
-        target=_run_toast,
-        args=(text, duration, title, "reply"),
-        daemon=True,
-    )
-    p.start()
+    """兼容旧接口：等同于 show_user"""
+    show_user(text)
 
 
 # 命令行测试
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="Toast 气泡测试")
-    parser.add_argument("text", nargs="*", default=["我想看不惑兄弟"])
-    parser.add_argument("--reply", action="store_true", help="显示回复风格")
-    args = parser.parse_args()
-
-    msg = " ".join(args.text)
-    if args.reply:
-        show_reply(msg)
-    else:
-        show_toast(msg)
+    print("测试气泡状态流...")
+    show_listening()
+    time.sleep(1.5)
+    show_user("帮我重启电脑")
+    time.sleep(1.5)
+    show_status("正在调用 API…")
+    time.sleep(2)
+    show_status("网络重试中 (2/3)…")
+    time.sleep(2)
+    show_reply("好的，已完成重启准备")
     time.sleep(4)
+    print("done")

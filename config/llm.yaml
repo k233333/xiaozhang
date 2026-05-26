@@ -55,6 +55,20 @@ providers:
       qwen-32b: qwen-qwq-32b                   # 推理模型
       kimi: moonshotai/kimi-k2-instruct-0905   # 月之暗面
 
+  # ---- 中转站：aijh.huanmin.top（OpenAI 兼容协议）----
+  # 支持 gpt-5.5 / gpt-5.4 / gpt-4o 等，走 OpenAI 兼容接口
+  # .env: CCB_API_KEY=sk-xxx
+  ccb:
+    api_key_env: CCB_API_KEY
+    base_url: https://aijh.huanmin.top/v1
+    sdk: openai
+    supports_vision: true          # gpt-5.5 / gpt-4o 均支持图片输入
+    models:
+      gpt55: gpt-5.5               # 最新旗舰，推荐主力
+      gpt55pro: gpt-5.5-pro        # 旗舰增强版
+      gpt54: gpt-5.4               # 上一代旗舰
+      gpt4o: gpt-4o                # 稳定视觉模型，备用
+
   # 选项 3：Claude（Anthropic 原生 SDK）
   # claude:
   #   api_key_env: ANTHROPIC_API_KEY

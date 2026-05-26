@@ -1,15 +1,20 @@
-"""运行时主流程（v3.1 — 混合模式 + 自学习）
+"""运行时主流程（v4.0 — Claude Code 大脑 + 混合模式 + 自学习）
 
-快速路径：本地 skill 匹配 → 直接执行（0.3s，不过 Hermes）
-慢速路径：转发 Hermes → LLM 规划+执行（4-8s）→ 成功后自动生成 SKILL.md
+快速路径：本地 skill 匹配 → 直接执行（0.3s，不过 LLM）
+慢速路径：转发 Claude Code → 自主规划+执行（5-15s）→ 成功后自动生成 SKILL.md
 下次同样的任务 → 本地命中 → 0.3s
 
 越用越快。
+
+v4.0 变更：Hermes → Claude Code
+  - CC 通过 headless 模式（claude --bare -p）调用
+  - CC 自主决定是否调 xz.py 执行桌面操作
+  - 比 Hermes 更智能（Claude/GPT-5.5 级别推理）
+  - context 管理更好（不累积 session history）
 """
 from __future__ import annotations
 
 import asyncio
-import sys
 from dataclasses import dataclass
 
 from src.actions.executor import PlanReport, execute_plan
@@ -21,39 +26,6 @@ from src.memory import store
 from src.skills import loader, matcher
 
 log = get_logger(__name__)
-
-# Hermes agent 单例
-_agent = None
-
-
-def _get_agent():
-    """获取或创建 Hermes AIAgent 单例（常驻内存）"""
-    global _agent
-    if _agent is not None:
-        return _agent
-
-    hermes_path = r"D:\11111begin\hermes-agent"
-    if hermes_path not in sys.path:
-        sys.path.insert(0, hermes_path)
-
-    try:
-        from run_agent import AIAgent
-
-        _agent = AIAgent(
-            model="deepseek-chat",
-            quiet_mode=True,
-            enabled_toolsets=["terminal", "skills"],
-            max_iterations=30,
-        )
-        # Token 优化：如果 AIAgent 支持这些参数，取消注释
-        # max_tokens=512,        # 限制输出长度
-        # temperature=0,         # 确定性输出，减少废话
-        # system_prompt="...",   # 自定义精简 prompt
-        log.info("Hermes AIAgent 初始化完成")
-        return _agent
-    except Exception as e:
-        log.error("Hermes AIAgent 初始化失败", err=str(e))
-        return None
 
 
 @dataclass
@@ -87,7 +59,39 @@ async def run_turn(user_text: str, sm: StateMachine | None = None) -> TurnResult
 
     try:
         # ============================================================
-        # 快速路径：本地 skill 匹配（0.3s，不调 LLM）
+        # 快速路径 0：JSON skill 命中（视觉学习产出，0 token，<0.5s）
+        # ============================================================
+        try:
+            from src.skills import json_skill as _json_skill  # noqa: PLC0415
+
+            jhit = _json_skill.match(user_text)
+            if jhit is not None:
+                log.info("JSON skill 命中（视觉学习路径）", skill=jhit.name)
+                store.add_event(session_id, "plan", "json_skill_hit", payload={"skill": jhit.name})
+
+                ok, msg = _json_skill.execute(jhit)
+                store.end_session(
+                    session_id, intent=jhit.name, success=ok,
+                    skill_hit=True, note=msg,
+                )
+
+                from src.brain.action_schema import Plan as _Plan, Step as _Step  # noqa: PLC0415
+
+                stub_plan = _Plan(
+                    intent=jhit.name, skill_hit=True, skill_name=jhit.name,
+                    steps=[_Step(tier="D", action="json_skill", description=jhit.name)],
+                    note=msg or "已执行",
+                )
+                return TurnResult(
+                    user_text=user_text, plan=stub_plan, report=None,
+                    skill_hit=True, success=ok,
+                    note=msg or ("好的，已完成" if ok else "执行失败"),
+                )
+        except Exception as e:
+            log.debug("JSON skill 路径异常（不影响）", err=str(e))
+
+        # ============================================================
+        # 快速路径 1：本地 SKILL.md 匹配（0.3s，不调 LLM）
         # ============================================================
         skills = loader.load_all()
         hit = matcher.match(user_text, skills)
@@ -132,41 +136,35 @@ async def run_turn(user_text: str, sm: StateMachine | None = None) -> TurnResult
             )
 
         # ============================================================
-        # 慢速路径：Hermes 处理（4-8s）
+        # 慢速路径：Claude Code 处理（5-15s）
         # ============================================================
-        store.add_event(session_id, "route", "hermes")
-        log.info("本地未命中，转发 Hermes", text=user_text[:50])
+        store.add_event(session_id, "route", "claude_code")
+        log.info("本地未命中，转发 Claude Code", text=user_text[:50])
 
-        agent = _get_agent()
-        if agent is None:
-            store.end_session(session_id, success=False, note="Hermes 不可用")
-            return TurnResult(
-                user_text=user_text, plan=None, report=None,
-                skill_hit=False, success=False,
-                note="Hermes 初始化失败",
-            )
+        from src.brain.cc_brain import chat as cc_chat  # noqa: PLC0415
 
-        # Hermes 是同步的，放线程池
-        loop = asyncio.get_running_loop()
-        reply = await loop.run_in_executor(None, agent.chat, user_text)
-        reply = (reply or "").strip()
-        success = bool(reply)
+        cc_result = await cc_chat(user_text)
+        reply = cc_result.reply.strip()
+        success = cc_result.success and bool(reply)
 
-        # Token 优化：防止 session 历史累积导致 input tokens 递增
-        # 每次调用后 reset，确保下次调用只发 system prompt + 当前问题
-        if hasattr(agent, 'reset') or hasattr(agent, 'clear_history'):
-            try:
-                reset_fn = getattr(agent, 'reset', None) or getattr(agent, 'clear_history', None)
-                if reset_fn:
-                    reset_fn()
-            except Exception:
-                pass  # reset 失败不影响主流程
-
-        log.info("Hermes 回复", reply=reply[:100], success=success)
-        store.add_event(session_id, "hermes_reply", reply[:500])
+        log.info(
+            "CC 回复",
+            reply=reply[:100],
+            success=success,
+            cost=cc_result.cost_usd,
+            cmds=cc_result.commands_executed,
+        )
+        store.add_event(session_id, "cc_reply", reply[:500], payload={
+            "cost_usd": cc_result.cost_usd,
+            "input_tokens": cc_result.input_tokens,
+            "output_tokens": cc_result.output_tokens,
+            "model": cc_result.model,
+            "duration_sec": cc_result.duration_sec,
+            "commands": cc_result.commands_executed,
+        })
 
         # ============================================================
-        # 自学习：Hermes 成功后尝试生成本地 SKILL.md
+        # 自学习：CC 成功后尝试生成本地 SKILL.md
         # 下次同样的任务直接走快速路径
         # ============================================================
         if success:
@@ -177,7 +175,7 @@ async def run_turn(user_text: str, sm: StateMachine | None = None) -> TurnResult
 
         store.end_session(
             session_id,
-            intent="hermes_dispatch",
+            intent="cc_dispatch",
             success=success,
             skill_hit=False,
             note=reply[:200],
@@ -194,35 +192,85 @@ async def run_turn(user_text: str, sm: StateMachine | None = None) -> TurnResult
             await sm.reset()
 
 
-async def _try_learn_skill(user_text: str, hermes_reply: str, session_id: int) -> None:
-    """Hermes 成功执行后，尝试生成本地 SKILL.md 供下次快速命中。
+async def _try_learn_skill(user_text: str, cc_reply: str, session_id: int) -> None:
+    """CC 成功执行后，尝试生成本地 SKILL.md 供下次快速命中。
 
-    只对"操作类"任务学习（打开app/搜索/系统控制），
-    纯问答类（"现在几点"）不生成 skill。
+    防爆约束（避免巨量低质量 skill）：
+      A. 必须是"操作类"任务（关键字白名单）
+      B. user_text 长度 4-40 字（太短歧义大，太长是闲聊）
+      C. 黑名单语义（取消/算了/几点/天气/你是谁）永不学
+      D. 现有 skill 已能命中 → 不学
+      E. 24h 冷却：同 intent slug 24h 内不学；超 24h 走 merge_triggers
     """
-    from src.skills.generator import generate_skill  # noqa: PLC0415
+    import time as _time  # noqa: PLC0415
     from src.brain.action_schema import Plan, Step  # noqa: PLC0415
+    from src.core.config import settings as _settings  # noqa: PLC0415
+    from src.skills.generator import _slug, generate_skill, merge_triggers  # noqa: PLC0415
 
-    # 简单启发式：如果 Hermes 回复里提到了 xz.py 或执行了操作，才学习
-    action_keywords = ["xz.py", "[OK]", "已打开", "已执行", "已播放", "已搜索", "已启动"]
-    is_action = any(kw in hermes_reply for kw in action_keywords)
-
-    if not is_action:
-        log.debug("非操作类回复，跳过 skill 学习", reply=hermes_reply[:50])
+    # C. 黑名单语义
+    BAD_KEYWORDS = (
+        "取消", "停一下", "停止", "算了", "不要", "别了", "退出", "停下",
+        "什么", "为什么", "怎么样", "好的", "知道了",
+        "几点", "天气", "你是谁",
+    )
+    if any(bk in user_text for bk in BAD_KEYWORDS):
+        log.debug("user_text 含黑名单语义，跳过学习", text=user_text[:30])
         return
 
-    # 构造一个最小 Plan 供 generator 使用
+    # B. 长度
+    if len(user_text) < 4 or len(user_text) > 40:
+        log.debug("user_text 长度不合适，跳过学习", length=len(user_text))
+        return
+
+    # A. 操作类 — CC 的回复中包含 xz.py 执行结果的标志
+    action_keywords = [
+        "xz.py", "[OK]", "已打开", "已执行", "已播放", "已搜索",
+        "已启动", "已下载", "已发送", "已点击", "截图",
+        "成功", "完成",
+    ]
+    if not any(kw in cc_reply for kw in action_keywords):
+        log.debug("非操作类回复，跳过 skill 学习", reply=cc_reply[:50])
+        return
+
+    # D. 已能命中
+    try:
+        from src.skills import loader, matcher  # noqa: PLC0415
+        existing = loader.load_all()
+        if matcher.match(user_text, existing) is not None:
+            log.debug("现有 skill 已能命中，跳过学习", text=user_text[:30])
+            return
+    except Exception:
+        pass
+
+    # E. 24h 冷却 + merge_triggers
+    intent_slug = _slug(user_text[:30])
+    target_dir = _settings.resolve_path(_settings.skills.generated_dir) / intent_slug
+    target_md = target_dir / "SKILL.md"
+    if target_md.exists():
+        mtime = target_md.stat().st_mtime
+        if _time.time() - mtime < 24 * 3600:
+            log.debug("24h 内已学过同 intent，跳过", intent=intent_slug)
+            return
+        try:
+            merged = merge_triggers(target_md, user_text)
+            if merged:
+                log.info("旧 skill 合并新 trigger", path=str(target_md), trigger=user_text)
+                store.add_event(session_id, "skill_merged", str(target_md))
+            return
+        except Exception as e:
+            log.debug("merge_triggers 失败", err=str(e))
+
     plan = Plan(
         intent=user_text[:30],
         skill_hit=False,
         steps=[Step(tier="D", action="run_cmd", cmd=["python", "xz.py", "run-turn", user_text])],
-        note=hermes_reply[:100],
+        note=cc_reply[:100],
     )
 
     path = await generate_skill(
         user_text=user_text,
         plan=plan,
-        outcome="成功（由 Hermes 执行）",
+        outcome="成功（由 Claude Code 执行）",
         overwrite=False,
     )
     if path:

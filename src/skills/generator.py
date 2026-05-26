@@ -26,6 +26,60 @@ def _slug(text: str) -> str:
     return s.strip("_") or "unnamed_skill"
 
 
+def merge_triggers(skill_md_path: Path, new_trigger: str) -> bool:
+    """把 new_trigger 追加到现有 SKILL.md 的 ## triggers 区段（去重）。
+
+    返回 True 表示真的写了新内容；False 表示已存在或无需修改。
+
+    防爆：单 skill trigger 上限 12 个。
+    """
+    if not skill_md_path.exists():
+        return False
+    try:
+        text = skill_md_path.read_text(encoding="utf-8")
+    except Exception:
+        return False
+
+    new_trigger = new_trigger.strip()
+    if not new_trigger:
+        return False
+
+    lines = text.splitlines()
+    in_trig = False
+    trig_end: int | None = None
+    existing: set[str] = set()
+    trig_start: int | None = None
+    for i, line in enumerate(lines):
+        if line.strip().lower() == "## triggers":
+            in_trig = True
+            trig_start = i
+            continue
+        if in_trig:
+            if line.strip().startswith("##"):
+                trig_end = i
+                break
+            if line.strip().startswith(("-", "*")):
+                existing.add(line.lstrip("-* ").strip())
+
+    if trig_start is None:
+        return False
+    if trig_end is None:
+        trig_end = len(lines)
+
+    if new_trigger in existing:
+        return False
+    if len(existing) >= 12:
+        log.debug("trigger 已达上限 12，拒绝合并", path=str(skill_md_path))
+        return False
+
+    insert_at = trig_end
+    while insert_at > trig_start + 1 and not lines[insert_at - 1].strip():
+        insert_at -= 1
+    lines.insert(insert_at, f"- {new_trigger}")
+    skill_md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return True
+
+
 async def generate_skill(
     *,
     user_text: str,

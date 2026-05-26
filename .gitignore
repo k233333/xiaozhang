@@ -33,6 +33,20 @@ Thumbs.db
 .env
 .env.local
 
+# 运行时生成的脚本（watchdog/log monitor）
+scripts/_watchdog.ps1
+scripts/_log_monitor.ps1
+
+# 凭证 / token 统计（含 API key，不入库）
+data/doubao_credentials.json
+data/token_usage.json
+
+# 日志文本
+logs/screen_parse_test.txt
+
+# 代理脚本
+proxy.js
+
 # 自动生成的 skills（开发期忽略，运行期再说）
 # skills/_generated/
 

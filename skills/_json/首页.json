@@ -1,0 +1,21 @@
+{
+  "name": "首页",
+  "triggers": [
+    "b站首页",
+    "打开b站首页",
+    "回到首页"
+  ],
+  "method": "playwright",
+  "selector": "role=link[name=\"首页\"]",
+  "text_match": null,
+  "target": null,
+  "fallback_method": "click_xy",
+  "fallback_x": 50,
+  "fallback_y": 32,
+  "page_url_hint": "https://www.bilibili.com/?spm_id_from=333.1007.0.0",
+  "matched_text": "首页",
+  "learned_at": "2026-05-23T14:03:54",
+  "use_count": 1,
+  "fail_count": 0,
+  "last_failure": ""
+}

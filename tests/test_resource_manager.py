@@ -10,7 +10,7 @@ def test_resource_manager_singleton():
     from src.core.resource_manager import resource_manager
 
     assert resource_manager is not None
-    assert len(resource_manager._models) == 4
+    assert len(resource_manager._models) == 5
 
 
 def test_initial_mode_standard():

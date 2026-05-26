@@ -1353,6 +1353,7 @@ async def _run_daemon() -> None:
     else:
 
         wake_task = None
+        ww_loop = None
 
         log.info("唤醒词禁用 — 进入键盘 push-to-talk 模式（按回车开始说话）")
 
@@ -1375,7 +1376,6 @@ async def _run_daemon() -> None:
             else:
 
                 # 唤醒词模式：等 wake_word_loop 把状态切到 LISTENING
-
                 pass
 
 
@@ -1384,11 +1384,33 @@ async def _run_daemon() -> None:
 
                 await asyncio.sleep(0.1)
 
+            # 唤醒词触发，显示"正在听…"气泡（常驻）
+            from src.ui.toast import show_listening  # noqa: PLC0415
+            show_listening()
 
+            # 优先用唤醒词循环里已录好的指令音频（避免卡死）
+            # wake_word_loop 在检测到唤醒词后立刻录了 POST_WAKE_RECORD_SEC 秒
+            chunk = None
+            if settings.wake_word.enabled and ww_loop is not None:
+                pending = ww_loop.take_pending_audio()
+                if pending is not None:
+                    audio_data, audio_sr = pending
+                    from src.audio.recorder import AudioChunk  # noqa: PLC0415
+                    chunk = AudioChunk(
+                        samples=audio_data,
+                        sample_rate=audio_sr,
+                        duration_sec=len(audio_data) / audio_sr,
+                    )
+                    log.info("使用唤醒后预录音频", duration_sec=round(chunk.duration_sec, 2))
 
-            chunk = await recorder.record_once_async()
+            # 没有预录音频时才走普通录音（键盘模式）
+            if chunk is None:
+                chunk = await recorder.record_once_async()
 
             if chunk is None:
+
+                from src.ui.toast import dismiss  # noqa: PLC0415
+                dismiss()
 
                 await sm.reset()
 
@@ -1402,6 +1424,9 @@ async def _run_daemon() -> None:
 
                 console.print("[dim]未识别到语音，回到 IDLE[/dim]")
 
+                from src.ui.toast import dismiss  # noqa: PLC0415
+                dismiss()
+
                 await sm.reset()
 
                 continue
@@ -1410,9 +1435,9 @@ async def _run_daemon() -> None:
 
             console.print(f"[cyan]你说：[/cyan]{tr.text}")
 
-            # 右下角气泡显示识别到的文字
-            from src.ui.toast import show_toast, show_reply  # noqa: PLC0415
-            show_toast(tr.text)
+            # 气泡更新：显示识别到的文字（常驻，等待处理结果）
+            from src.ui.toast import show_user, show_reply, show_error  # noqa: PLC0415
+            show_user(tr.text)
 
             result = await run_turn(tr.text, sm=sm)
 
@@ -1422,16 +1447,18 @@ async def _run_daemon() -> None:
 
             )
 
-            # 执行完弹回复气泡 + TTS 语音播报
-            # 优先用 plan.note（LLM 生成的自然语言回复），否则用默认
+            # 气泡更新：显示结果（3s 后自动淡出）
             _default_reply = {True: "好的，已完成", False: "抱歉，执行失败了"}
             reply_text = (result.note or "").strip() or _default_reply[result.success]
 
-            # 如果 plan 里有 say step 已经播报过了，就不重复
+            if result.success:
+                show_reply(reply_text, duration=3.0)
+            else:
+                show_error(reply_text, duration=4.0)
+
+            # TTS 语音播报回复
             from src.audio.tts import is_playing  # noqa: PLC0415
             if not is_playing():
-                show_reply(reply_text)
-                # TTS 语音播报回复
                 try:
                     from src.audio.tts import speak  # noqa: PLC0415
                     await speak(reply_text)

@@ -85,6 +85,31 @@ open-app 支持：chrome / 微信 / qq / steam / vscode / 抖音 / edge / 记事
 |---|---|
 | `run-turn <文字>` | 走完整链路（本地skill匹配 → 执行），简单操作优先用专用命令 |
 
+### 视觉交互（0 token，DirectML GPU）
+
+| 命令 | 用途 | 示例 |
+|---|---|---|
+| `click-xy <x> <y>` | 绝对坐标点击（最快兜底） | `xz.py click-xy 500 300` |
+| `launch-chrome [url]` | 启动/复用 CDP Chrome（端口 9222） | `xz.py launch-chrome https://bilibili.com` |
+| `playwright-click <选择器>` | 用 CSS/role/text 选择器点击 Chrome 元素 | `xz.py playwright-click "role=button[name=\"播放\"]"` |
+| `chrome-click <描述>` | 自然语言找 Chrome 元素并点击 | `xz.py chrome-click 播放` |
+| `learn-chrome <描述> -- <t1>\|<t2>` | 学 Chrome 元素 → 生成 JSON skill | `xz.py learn-chrome 播放 -- b站播放\|开始播放` |
+| `screen-parse` | 截屏 + YOLO + OCR → 打印所有 UI 元素 | `xz.py screen-parse` |
+| `find-element <描述>` | OCR 找屏幕元素，输出坐标 | `xz.py find-element 确定` |
+| `screen-click <描述>` | OCR 找元素并点击（通用桌面） | `xz.py screen-click 确定` |
+| `screen-click <描述> -- <t1>\|<t2>` | 找+点+学成 JSON skill | `xz.py screen-click 确定 -- 点确定\|确认` |
+| `skill-run <名>` | 直接执行已学的 JSON skill | `xz.py skill-run 首页` |
+| `skill-list` | 列出所有 JSON skill | `xz.py skill-list` |
+| `skill-prune [--dry]` | 清理低质量/久未使用 JSON skill | `xz.py skill-prune` |
+
+#### 视觉交互使用规则
+1. **Chrome 网页操作**优先用 `chrome-click`（启发式 selector，0 token）
+2. **本地程序按钮**用 `screen-click`（OCR 找文字 → 坐标点击）
+3. 成功后用 `learn-chrome` 或 `screen-click ... -- trigger` 学成 JSON skill
+4. 下次同样操作 → `skill-run` 或 runtime 自动匹配 → 0 token，< 0.5s
+5. `launch-chrome` 必须在 `chrome-click` / `playwright-click` 之前确保 CDP 活着
+6. `screen-parse` 用于调试，看屏幕上有哪些可点击元素
+
 ## 输出格式
 - `[OK]` — 成功
 - `[FAIL]` — 失败（stderr）
@@ -110,6 +135,17 @@ open-app 支持：chrome / 微信 / qq / steam / vscode / 抖音 / edge / 记事
 1. 判断对应哪个命令
 2. 执行
 3. 检查 `[OK]` 确认成功
+
+### 用户要点击网页元素时
+1. 确保 CDP Chrome 活着：`launch-chrome`（或 `launch-chrome <url>`）
+2. 用 `chrome-click <描述>` 找元素并点击
+3. 成功后输出 `[LEARNABLE]` JSON — 可选用 `learn-chrome` 学成 skill
+4. 如果 chrome-click 失败，用 `screen-click <描述>` 走 OCR 兜底
+
+### 用户要点击本地程序按钮时
+1. 用 `screen-click <描述>` — OCR 找文字 → 坐标点击
+2. 如果知道精确坐标，直接 `click-xy <x> <y>`
+3. 成功后可以 `screen-click <描述> -- <trigger>` 学成 skill
 
 ## Pitfalls
 - search-torrent 已自动过滤 720p 以下和 0 做种的死种
